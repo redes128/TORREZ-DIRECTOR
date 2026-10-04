@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Control de Recorrido de Aulas</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- SheetJS para leer archivos Excel -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    .turno-manana { border-left: 6px solid #f59e0b; background-color: #fef3c7; }
+    .turno-tarde { border-left: 6px solid #3b82f6; background-color: #dbeafe; }
+    .turno-noche { border-left: 6px solid #8b5cf6; background-color: #ede9fe; }
+    .visitado { opacity: 0.6; background-color: #e5e7eb !important; border-left-color: #10b981 !important; }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans min-h-screen pb-12">
+
+  <!-- Header / Barra Superior -->
+  <header class="bg-indigo-700 text-white p-4 shadow-md sticky top-0 z-50">
+    <div class="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+      <div>
+        <h1 class="text-xl font-bold flex items-center gap-2">
+          <i class="fa-solid fa-graduation-cap"></i> Control de Aulas
+        </h1>
+        <p class="text-xs text-indigo-200">Seguimiento y Registro de Estudiantes en Campo</p>
+      </div>
+      
+      <!-- Resumen Estadístico -->
+      <div class="flex gap-4 text-center bg-indigo-800/60 p-2 rounded-lg text-sm">
+        <div>
+          <span class="block text-xs text-indigo-200">Programados</span>
+          <span id="stat-programados" class="font-bold text-lg">0</span>
+        </div>
+        <div class="border-r border-indigo-600"></div>
+        <div>
+          <span class="block text-xs text-indigo-200">Alcanzados</span>
+          <span id="stat-alcanzados" class="font-bold text-lg text-emerald-300">0</span>
+        </div>
+        <div class="border-r border-indigo-600"></div>
+        <div>
+          <span class="block text-xs text-indigo-200">Aulas Visitadas</span>
+          <span id="stat-aulas" class="font-bold text-lg text-amber-300">0</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto p-4 space-y-4">
+
+    <!-- Panel de Carga de Archivo & Filtros -->
+    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 space-y-4">
+      
+      <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+        <div class="flex items-center gap-2">
+          <span id="file-status" class="text-xs font-semibold px-2.5 py-1 rounded bg-amber-100 text-amber-800">
+            Buscando torres.xlsx...
+          </span>
+          <button onclick="intentarCargarTorresExcel()" class="text-xs text-indigo-600 underline hover:text-indigo-800">
+            Reintentar auto-carga
+          </button>
+        </div>
+        <label class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded cursor-pointer transition">
+          <i class="fa-solid fa-upload mr-1"></i> Subir Excel Manualmente
+          <input type="file" id="file-input" accept=".xlsx, .xls" class="hidden" onchange="cargarArchivoManual(event)">
+        </label>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <!-- Filtro por Carrera -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Carrera(s):</label>
+          <select id="filter-carrera" multiple onchange="aplicarFiltros()" class="w-full text-sm border rounded-lg p-2 bg-slate-50 focus:ring-2 focus:ring-indigo-500 min-h-[70px]">
+            <!-- Se llena dinámicamente -->
+          </select>
+          <span class="text-[10px] text-slate-400">Mantén presionado Ctrl / Cmd para seleccionar varias</span>
+        </div>
+
+        <!-- Filtro por Turno -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Turno:</label>
+          <select id="filter-turno" onchange="aplicarFiltros()" class="w-full text-sm border rounded-lg p-2 bg-slate-50 focus:ring-2 focus:ring-indigo-500">
+            <option value="TODOS">Todos los Turnos</option>
+            <option value="MANANA">🌅 Mañana (07:00 - 12:00)</option>
+            <option value="TARDE">☀️ Tarde (12:00 - 18:00)</option>
+            <option value="NOCHE">🌙 Noche (18:00+)</option>
+          </select>
+        </div>
+
+        <!-- Buscador general -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Buscar (Aula, Materia, Docente):</label>
+          <input type="text" id="filter-search" oninput="aplicarFiltros()" placeholder="Ej: A103, Dibujo, Villagomez..." class="w-full text-sm border rounded-lg p-2 bg-slate-50 focus:ring-2 focus:ring-indigo-500">
+          
+          <button onclick="limpiarProgreso()" class="mt-2 text-xs text-rose-600 hover:text-rose-800 flex items-center gap-1">
+            <i class="fa-solid fa-rotate-left"></i> Reiniciar marcas de visita
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Navegación por Días -->
+    <div class="flex overflow-x-auto gap-2 pb-1 border-b border-slate-200" id="days-bar">
+      <button onclick="seleccionarDia('LUN')" class="day-btn px-4 py-2 rounded-lg font-bold text-sm bg-indigo-600 text-white shadow-sm">LUN</button>
+      <button onclick="seleccionarDia('MAR')" class="day-btn px-4 py-2 rounded-lg font-bold text-sm bg-white text-slate-600 border hover:bg-slate-50">MAR</button>
+      <button onclick="seleccionarDia('MIE')" class="day-btn px-4 py-2 rounded-lg font-bold text-sm bg-white text-slate-600 border hover:bg-slate-50">MIÉ</button>
+      <button onclick="seleccionarDia('JUE')" class="day-btn px-4 py-2 rounded-lg font-bold text-sm bg-white text-slate-600 border hover:bg-slate-50">JUE</button>
+      <button onclick="seleccionarDia('VIE')" class="day-btn px-4 py-2 rounded-lg font-bold text-sm bg-white text-slate-600 border hover:bg-slate-50">VIE</button>
+      <button onclick="seleccionarDia('SAB')" class="day-btn px-4 py-2 rounded-lg font-bold text-sm bg-white text-slate-600 border hover:bg-slate-50">SÁB</button>
+    </div>
+
+    <!-- Contenedor Principal de la Lista de Aulas -->
+    <div id="aulas-container" class="space-y-3">
+      <div class="text-center py-12 bg-white rounded-xl shadow-sm border">
+        <i class="fa-solid fa-spinner fa-spin text-3xl text-indigo-500 mb-2"></i>
+        <p class="text-sm text-slate-500">Cargando datos de <code class="font-bold text-indigo-600">torres.xlsx</code>...</p>
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    let datosCompletos = [];
+    let diaActual = 'LUN';
+    let marcasVisita = JSON.parse(localStorage.getItem('marcasVisita') || '{}');
+    let conteoAlumnos = JSON.parse(localStorage.getItem('conteoAlumnos') || '{}');
+
+    // Mapeo estándar de días para normalización
+    const normalizarDia = (dia) => {
+      if (!dia) return '';
+      const str = dia.toString().trim().toUpperCase();
+      if (str.startsWith('LUN')) return 'LUN';
+      if (str.startsWith('MAR')) return 'MAR';
+      if (str.startsWith('MI') || str.startsWith('MIE')) return 'MIE';
+      if (str.startsWith('JUE')) return 'JUE';
+      if (str.startsWith('VIE')) return 'VIE';
+      if (str.startsWith('SA') || str.startsWith('SAB')) return 'SAB';
+      return str;
+    };
+
+    // Al cargar la página intentamos cargar torres.xlsx automáticamente
+    window.addEventListener('DOMContentLoaded', () => {
+      intentarCargarTorresExcel();
+    });
+
+    function intentarCargarTorresExcel() {
+      actualizarEstadoArchivo("Buscando torres.xlsx...", "amber");
+      fetch('torres.xlsx')
+        .then(res => {
+          if (!res.ok) throw new Error("No se halló torres.xlsx");
+          return res.arrayBuffer();
+        })
+        .then(buffer => {
+          procesarWorkbook(buffer);
+          actualizarEstadoArchivo("torres.xlsx cargado automáticamente", "emerald");
+        })
+        .catch(err => {
+          console.warn(err);
+          actualizarEstadoArchivo("Sube torres.xlsx o selecciona el archivo", "amber");
+          document.getElementById('aulas-container').innerHTML = `
+            <div class="text-center py-12 bg-white rounded-xl shadow-sm border p-6">
+              <i class="fa-solid fa-file-excel text-4xl text-emerald-600 mb-3"></i>
+              <h3 class="font-bold text-slate-700">No se detectó el archivo "torres.xlsx" local</h3>
+              <p class="text-xs text-slate-500 mt-1 max-w-md mx-auto">Sube el archivo torres.xlsx al mismo repositorio de GitHub Pages o cárgalo manualmente usando el botón superior.</p>
+            </div>
+          `;
+        });
+    }
+
+    function cargarArchivoManual(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        procesarWorkbook(evt.target.result);
+        actualizarEstadoArchivo(`Cargado: ${file.name}`, "emerald");
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function actualizarEstadoArchivo(msg, color) {
+      const statusEl = document.getElementById('file-status');
+      statusEl.textContent = msg;
+      statusEl.className = `text-xs font-semibold px-2.5 py-1 rounded bg-${color}-100 text-${color}-800`;
+    }
+
+    function procesarWorkbook(buffer) {
+      const workbook = XLSX.read(buffer, { type: 'array' });
+      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rawData = XLSX.utils.sheet_to_json(firstSheet, { defval: "" });
+
+      // Normalización de claves/columnas del Excel
+      datosCompletos = rawData.map((row, idx) => {
+        const getVal = (posiblesNombres) => {
+          for (let name of posiblesNombres) {
+            const key = Object.keys(row).find(k => k.trim().toLowerCase() === name.toLowerCase());
+            if (key && row[key] !== undefined) return row[key];
+          }
+          return "";
+        };
+
+        const horaEntrada = getVal(["Hora Entrada", "HoraEntrada", "Entrada"]);
+        const horaSalida = getVal(["Hora Salida", "HoraSalida", "Salida"]);
+
+        return {
+          id: `row_${idx}`,
+          dia: normalizarDia(getVal(["Dia", "Día"])),
+          horaEntrada: String(horaEntrada).trim(),
+          horaSalida: String(horaSalida).trim(),
+          aula: String(getVal(["Aula"])).trim(),
+          edificio: String(getVal(["Edificio"])).trim(),
+          materia: String(getVal(["Materia"])).trim(),
+          grupo: String(getVal(["Grupo"])).trim(),
+          curso: String(getVal(["Curso"])).trim(),
+          docente: String(getVal(["Docente"])).trim(),
+          carrera: String(getVal(["Carrera"])).trim(),
+          programados: parseInt(getVal(["Nro de programados", "Nro de programados ", "Programados"])) || 0,
+          turno: calcularTurno(horaEntrada)
+        };
+      });
+
+      poblarFiltroCarreras();
+      aplicarFiltros();
+    }
+
+    function calcularTurno(horaStr) {
+      if (!horaStr) return 'MANANA';
+      const horaNum = parseInt(horaStr.split(':')[0]) || 0;
+      if (horaNum < 12) return 'MANANA';
+      if (horaNum < 18) return 'TARDE';
+      return 'NOCHE';
+    }
+
+    function poblarFiltroCarreras() {
+      const carreras = [...new Set(datosCompletos.map(d => d.carrera).filter(Boolean))].sort();
+      const select = document.getElementById('filter-carrera');
+      select.innerHTML = carreras.map(c => `<option value="${c}">${c}</option>`).join('');
+    }
+
+    function seleccionarDia(dia) {
+      diaActual = dia;
+      document.querySelectorAll('.day-btn').forEach(btn => {
+        if (btn.textContent.trim().toUpperCase().includes(dia)) {
+          btn.className = "day-btn px-4 py-2 rounded-lg font-bold text-sm bg-indigo-600 text-white shadow-sm";
+        } else {
+          btn.className = "day-btn px-4 py-2 rounded-lg font-bold text-sm bg-white text-slate-600 border hover:bg-slate-50";
+        }
+      });
+      aplicarFiltros();
+    }
+
+    function aplicarFiltros() {
+      if (!datosCompletos.length) return;
+
+      const carrerasSeleccionadas = Array.from(document.getElementById('filter-carrera').selectedOptions).map(o => o.value);
+      const turnoSeleccionado = document.getElementById('filter-turno').value;
+      const busqueda = document.getElementById('filter-search').value.toLowerCase();
+
+      const filtrados = datosCompletos.filter(item => {
+        // Filtro Día
+        if (item.dia !== diaActual) return false;
+
+        // Filtro Carrera (si hay seleccionadas)
+        if (carrerasSeleccionadas.length > 0 && !carrerasSeleccionadas.includes(item.carrera)) return false;
+
+        // Filtro Turno
+        if (turnoSeleccionado !== 'TODOS' && item.turno !== turnoSeleccionado) return false;
+
+        // Búsqueda
+        if (busqueda) {
+          const textMatch = `${item.aula} ${item.materia} ${item.docente} ${item.edificio}`.toLowerCase();
+          if (!textMatch.includes(busqueda)) return false;
+        }
+
+        return true;
+      });
+
+      // Ordenar por hora de entrada y luego por aula
+      filtrados.sort((a, b) => a.horaEntrada.localeCompare(b.horaEntrada) || a.aula.localeCompare(b.aula));
+
+      renderizarAulas(filtrados);
+      actualizarEstadisticas();
+    }
+
+    function renderizarAulas(lista) {
+      const container = document.getElementById('aulas-container');
+
+      if (lista.length === 0) {
+        container.innerHTML = `
+          <div class="text-center py-10 bg-white rounded-xl shadow-sm border text-slate-500 text-sm">
+            No se encontraron clases para los filtros seleccionados.
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = lista.map(item => {
+        const esVisitado = !!marcasVisita[item.id];
+        const valAlumnos = conteoAlumnos[item.id] !== undefined ? conteoAlumnos[item.id] : item.programados;
+        
+        let turnoClase = 'turno-manana';
+        let turnoBadge = '🌅 Mañana';
+        if (item.turno === 'TARDE') { turnoClase = 'turno-tarde'; turnoBadge = '☀️ Tarde'; }
+        if (item.turno === 'NOCHE') { turnoClase = 'turno-noche'; turnoBadge = '🌙 Noche'; }
+
+        return `
+          <div id="card-${item.id}" class="bg-white p-4 rounded-xl shadow-sm border transition-all ${turnoClase} ${esVisitado ? 'visitado' : ''}">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+              
+              <!-- Info Aula y Horario -->
+              <div class="space-y-1">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="text-lg font-black text-slate-800 bg-white/80 px-2 py-0.5 rounded border border-slate-200">
+                    <i class="fa-solid fa-door-open text-indigo-600 mr-1"></i> ${item.aula || 'S/A'}
+                  </span>
+                  <span class="text-sm font-semibold text-slate-700">
+                    <i class="fa-regular fa-clock mr-1"></i> ${item.horaEntrada} - ${item.horaSalida}
+                  </span>
+                  <span class="text-xs px-2 py-0.5 rounded-full bg-white/60 text-slate-600 border">
+                    ${turnoBadge}
+                  </span>
+                  <span class="text-xs font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded">
+                    ${item.carrera}
+                  </span>
+                </div>
+
+                <h3 class="font-bold text-base text-slate-900">${item.materia} <span class="text-xs font-normal text-slate-500">(Grupo ${item.grupo || '-'})</span></h3>
+                <p class="text-xs text-slate-600">
+                  <i class="fa-solid fa-chalkboard-user mr-1"></i> ${item.docente || 'Sin docente'} | 
+                  <i class="fa-solid fa-building mr-1"></i> ${item.edificio} | Curso: ${item.curso}
+                </p>
+              </div>
+
+              <!-- Control de Asistencia / Estado -->
+              <div class="flex items-center gap-3 justify-between md:justify-end border-t md:border-t-0 pt-2 md:pt-0">
+                
+                <!-- Input Alumnos Alcanzados -->
+                <div class="text-center">
+                  <label class="block text-[10px] text-slate-500 uppercase font-semibold">Alumnos Hablados</label>
+                  <div class="flex items-center border rounded-lg bg-white overflow-hidden shadow-sm">
+                    <button onclick="modificarConteo('${item.id}', -1)" class="px-2.5 py-1 text-slate-600 hover:bg-slate-100 font-bold">-</button>
+                    <input type="number" id="input-${item.id}" value="${valAlumnos}" onchange="guardarConteoDirecto('${item.id}', this.value)" class="w-14 text-center text-sm font-bold border-x-0 border-y-0 py-1 focus:ring-0">
+                    <button onclick="modificarConteo('${item.id}', 1)" class="px-2.5 py-1 text-slate-600 hover:bg-slate-100 font-bold">+</button>
+                  </div>
+                  <span class="text-[10px] text-slate-400">Prog: ${item.programados}</span>
+                </div>
+
+                <!-- Botón de Visita -->
+                <button onclick="toggleVisita('${item.id}')" class="px-3 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${esVisitado ? 'bg-emerald-600 text-white shadow' : 'bg-slate-800 text-white hover:bg-slate-700'}">
+                  <i class="fa-solid ${esVisitado ? 'fa-circle-check' : 'fa-circle'}"></i>
+                  ${esVisitado ? 'Visitado' : 'Marcar Entré'}
+                </button>
+
+              </div>
+
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function toggleVisita(id) {
+      marcasVisita[id] = !marcasVisita[id];
+      localStorage.setItem('marcasVisita', JSON.stringify(marcasVisita));
+      aplicarFiltros();
+    }
+
+    function modificarConteo(id, delta) {
+      const input = document.getElementById(`input-${id}`);
+      let val = parseInt(input.value) || 0;
+      val = Math.max(0, val + delta);
+      input.value = val;
+      guardarConteoDirecto(id, val);
+    }
+
+    function guardarConteoDirecto(id, valor) {
+      conteoAlumnos[id] = parseInt(valor) || 0;
+      localStorage.setItem('conteoAlumnos', JSON.stringify(conteoAlumnos));
+      actualizarEstadisticas();
+    }
+
+    function actualizarEstadisticas() {
+      let totalProgramados = 0;
+      let totalAlcanzados = 0;
+      let totalAulasVisitadas = 0;
+
+      datosCompletos.forEach(item => {
+        totalProgramados += item.programados;
+        if (marcasVisita[item.id]) {
+          totalAulasVisitadas++;
+          totalAlcanzados += conteoAlumnos[item.id] !== undefined ? conteoAlumnos[item.id] : item.programados;
+        }
+      });
+
+      document.getElementById('stat-programados').textContent = totalProgramados;
+      document.getElementById('stat-alcanzados').textContent = totalAlcanzados;
+      document.getElementById('stat-aulas').textContent = totalAulasVisitadas;
+    }
+
+    function limpiarProgreso() {
+      if (confirm("¿Deseas reiniciar todas las marcas de aulas visitadas y conteos guardados?")) {
+        marcasVisita = {};
+        conteoAlumnos = {};
+        localStorage.removeItem('marcasVisita');
+        localStorage.removeItem('conteoAlumnos');
+        aplicarFiltros();
+      }
+    }
+  </script>
+</body>
+</html>
