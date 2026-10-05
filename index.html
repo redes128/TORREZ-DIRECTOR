@@ -1,1047 +1,250 @@
 <!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Centro de Control de Recorridos y Prioridades</title>
-  
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  
-  <!-- SheetJS para lectura de Excel -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  
-  <!-- Chart.js para Gráficas Interactivas -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  
-  <!-- Lucide Icons -->
-  <script src="https://unpkg.com/lucide@latest"></script>
-
-  <!-- Firebase v10 SDKs (Modular) -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, doc, setDoc, deleteDoc, onSnapshot, collection, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyD91gM_l8WQMkuaMIq_6Fsr8bb0K9058I8",
-      authDomain: "torrez-direccion.firebaseapp.com",
-      projectId: "torrez-direccion",
-      storageBucket: "torrez-direccion.firebasestorage.app",
-      messagingSenderId: "458114495406",
-      appId: "1:458114495406:web:9c4e0b7cbec270c86e0e3f",
-      measurementId: "G-18P1B2HMZ5"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-    enableIndexedDbPersistence(db).catch((err) => {
-      console.warn("Persistencia offline Firestore:", err.code || err);
-    });
-
-    window.db = db;
-    window.setDoc = setDoc;
-    window.deleteDoc = deleteDoc;
-    window.doc = doc;
-    window.collection = collection;
-    window.onSnapshot = onSnapshot;
-    window.getDocs = null;
-  </script>
-
-  <style>
-
-    body{background:#f4f7fb;}
-    .tab-active { border-bottom: 3px solid #2563eb; color: #1d4ed8; font-weight: 800; }
-    .card-critica { border-left: 6px solid #dc2626; background-color: #fff7f7; }
-    .card-grande { border-left: 6px solid #ea580c; background-color: #fffaf5; }
-    .card-mediana { border-left: 6px solid #2563eb; background-color: #f7faff; }
-    .card-pequena { border-left: 6px solid #059669; background-color: #f5fffb; }
-    .card-visited { opacity: 0.62; background:#eef2f7!important; border-left-color:#94a3b8!important; }
-    .card-covered{opacity:.48;filter:saturate(.65);background:#f1f5f9!important;border-left-color:#94a3b8!important}
-    .priority-1{border:2px solid #dc2626!important}
-    .priority-2{border:2px solid #ea580c!important}
-    .priority-3{border:2px solid #2563eb!important}
-    .safe-area{padding-bottom:90px}
-    .app-section{display:none}.app-section.active{display:block}
-    .mobile-nav{padding-bottom:env(safe-area-inset-bottom)}
-    .clock-pill{font-variant-numeric:tabular-nums}
-    .offline-dot{width:8px;height:8px;border-radius:999px;display:inline-block}
-    @media(max-width:767px){body{padding-bottom:76px}.desktop-tabs{display:none!important}.mobile-card{border-radius:18px}.mobile-nav button{min-height:58px}}
-    @media(max-width:640px){.mobile-sticky{position:sticky;bottom:10px;z-index:30}.touch-btn{min-height:44px}.card-actions{grid-template-columns:1fr 1fr}}
-    .tab-active { border-bottom: 3px solid #3b82f6; color: #1d4ed8; font-weight: 700; }
-    .card-critica { border-left: 6px solid #ef4444; background-color: #fef2f2; }
-    .card-grande { border-left: 6px solid #f97316; background-color: #fff7ed; }
-    .card-mediana { border-left: 6px solid #3b82f6; background-color: #eff6ff; }
-    .card-pequena { border-left: 6px solid #10b981; background-color: #ecfdf5; }
-    .card-visited { opacity: 0.6; background-color: #f3f4f6 !important; border-left-color: #9ca3af !important; }
-  </style>
-</head>
-<body class="bg-slate-100 text-slate-800 font-sans antialiased min-h-screen">
-
-  <!-- ENCABEZADO PRINCIPAL -->
-  <header class="bg-slate-900 text-white shadow-md sticky top-0 z-40">
-    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-col md:flex-row justify-between items-center gap-3">
-      <div class="flex items-center gap-3">
-        <div class="p-2 bg-blue-600 rounded-lg">
-          <i data-lucide="building-2" class="w-6 h-6 text-white"></i>
-        </div>
-        <div>
-          <h1 class="text-lg font-bold leading-tight">Control de Recorrido, Cobertura y Prioridades</h1>
-          <div class="flex items-center gap-2 mt-1"><p class="text-xs text-slate-400" id="dbStatus">Conectando con base de datos...</p><span class="text-slate-600">·</span><span id="relojActual" class="text-xs font-bold text-blue-300 clock-pill">--:--</span></div>
-        </div>
-      </div>
-
-      <div class="flex items-center gap-2">
-        <label for="excelUpload" class="bg-slate-800 hover:bg-slate-700 text-xs px-3 py-2 rounded-lg cursor-pointer transition border border-slate-700 flex items-center gap-2">
-          <i data-lucide="file-spreadsheet" class="w-4 h-4 text-emerald-400"></i> Cargar Excel
-        </label>
-        <input type="file" id="excelUpload" accept=".xlsx, .xls" class="hidden">
-        <button onclick="reiniciarProgreso()" class="bg-red-950 hover:bg-red-900 text-red-200 border border-red-800 text-xs px-3 py-2 rounded-lg transition flex items-center gap-1.5">
-          <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Reset
-        </button>
-      </div>
-    </div>
-  </header>
-
-  <main class="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
-
-    <!-- SECCIÓN: SELECCIÓN MULTI-CARRERA -->
-    <section id="panelCarreras" class="app-section active bg-white p-4 rounded-xl shadow-sm border border-slate-200 space-y-3">
-      <div class="flex justify-between items-center">
-        <h2 class="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
-          <i data-lucide="filter" class="w-4 h-4 text-blue-600"></i> Seleccionar Carrera(s)
-        </h2>
-        <button onclick="toggleTodasCarreras()" class="text-xs text-blue-600 hover:underline font-semibold" id="btnToggleCarreras">
-          Desmarcar Todas
-        </button>
-      </div>
-      <div id="carrerasContainer" class="flex flex-wrap gap-2">
-        <span class="text-xs text-slate-400">Cargando lista de carreras...</span>
-      </div>
-    </section>
-
-    <!-- CENTRO DE PRIORIDADES -->
-    <section id="panelPrioridades" class="app-section active bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-      <div class="p-4 bg-slate-900 text-white flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-        <div>
-          <p class="text-[10px] uppercase tracking-[0.18em] text-blue-300 font-bold">Centro de decisiones</p>
-          <h2 class="text-lg font-extrabold">15 aulas prioritarias por turno</h2>
-          <p class="text-xs text-slate-300 mt-1">Prioriza grupos grandes que todavía no tienen una visita registrada. Los horarios repetidos del mismo grupo se consideran cubiertos.</p>
-        </div>
-        <div class="grid grid-cols-2 sm:flex gap-2">
-          <select id="rDia" onchange="renderizarPrioridades()" class="bg-white text-slate-800 text-xs rounded-lg px-3 py-2 font-bold">
-            <option value="LUN">Lunes</option><option value="MAR">Martes</option><option value="MIE">Miércoles</option><option value="JUE">Jueves</option><option value="VIE">Viernes</option><option value="SAB">Sábado</option>
-          </select>
-          <select id="rTurno" onchange="renderizarPrioridades()" class="bg-white text-slate-800 text-xs rounded-lg px-3 py-2 font-bold">
-            <option value="MAÑANA">Mañana</option><option value="TARDE">Tarde</option><option value="NOCHE">Noche</option>
-          </select>
-          <label class="col-span-2 sm:col-span-1 bg-white/10 border border-white/20 rounded-lg px-2 py-2 text-[10px] font-bold flex items-center gap-2"><input id="rSoloLlegables" type="checkbox" checked onchange="renderizarPrioridades()"> Solo horarios vigentes</label>
-        </div>
-      </div>
-      <div id="prioridadesResumen" class="p-4 grid grid-cols-1 sm:grid-cols-3 gap-3"></div>
-      <div id="prioridadesLista" class="px-4 pb-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
-    </section>
-
-    <!-- NAVEGACIÓN POR PESTAÑAS -->
-    <div class="desktop-tabs border-b border-slate-200 flex gap-6 text-sm font-medium overflow-x-auto bg-white px-4 rounded-t-xl shadow-sm">
-      <button onclick="cambiarTab('aulas')" id="tab-aulas" class="tab-active py-3 flex items-center gap-2 whitespace-nowrap">
-        <i data-lucide="map-pin" class="w-4 h-4"></i> Recorrido de Aulas
-      </button>
-      <button onclick="cambiarTab('cursos')" id="tab-cursos" class="py-3 text-slate-500 hover:text-slate-800 flex items-center gap-2 whitespace-nowrap">
-        <i data-lucide="layers" class="w-4 h-4"></i> Cursos, Materias y Grupos
-      </button>
-      <button onclick="cambiarTab('docentes')" id="tab-docentes" class="py-3 text-slate-500 hover:text-slate-800 flex items-center gap-2 whitespace-nowrap">
-        <i data-lucide="users" class="w-4 h-4"></i> Reporte de Docentes
-      </button>
-      <button onclick="cambiarTab('graficas')" id="tab-graficas" class="py-3 text-slate-500 hover:text-slate-800 flex items-center gap-2 whitespace-nowrap">
-        <i data-lucide="bar-chart-3" class="w-4 h-4"></i> Analítica y Gráficas
-      </button>
-    </div>
-
-    <!-- TARJETAS DE MÉTRICAS GLOBALES -->
-    <section id="panelMetricas" class="app-section active grid grid-cols-2 md:grid-cols-4 gap-4">
-      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-        <p class="text-xs text-slate-500 font-medium uppercase">Estudiantes Únicos</p>
-        <p class="text-2xl font-bold text-slate-900 mt-1" id="mTotalEstudiantes">0</p>
-        <p class="text-[10px] text-slate-400 mt-0.5">Sin duplicar por sesiones de clase</p>
-      </div>
-      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-        <p class="text-xs text-slate-500 font-medium uppercase">Estudiantes Contactados</p>
-        <p class="text-2xl font-bold text-emerald-600 mt-1" id="mTotalContactados">0</p>
-        <p class="text-[10px] text-emerald-600 font-medium mt-0.5" id="mPorcentajeContactados">0% alcanzado</p>
-      </div>
-      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-        <p class="text-xs text-slate-500 font-medium uppercase">Total Clases Programadas</p>
-        <p class="text-2xl font-bold text-slate-900 mt-1" id="mTotalAulas">0</p>
-        <p class="text-[10px] text-slate-400 mt-0.5">En toda la semana</p>
-      </div>
-      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-        <p class="text-xs text-slate-500 font-medium uppercase">Aulas Visitadas</p>
-        <p class="text-2xl font-bold text-blue-600 mt-1" id="mAulasVisitadas">0</p>
-        <p class="text-[10px] text-blue-600 font-medium mt-0.5" id="mPorcentajeAulas">0% completado</p>
-      </div>
-    </section>
-
-    <!-- LECTURA RÁPIDA DE FORTALEZAS Y BRECHAS -->
-    <section id="resumenPolitico" class="app-section active grid grid-cols-1 md:grid-cols-3 gap-4">
-      <div class="bg-white p-4 rounded-xl shadow-sm border border-emerald-200">
-        <div class="flex items-center justify-between"><p class="text-[10px] uppercase font-bold text-emerald-600">Fortaleza</p><i data-lucide="trending-up" class="w-4 h-4 text-emerald-600"></i></div>
-        <p id="fortalezaTexto" class="text-sm font-bold text-slate-800 mt-2">Calculando...</p>
-      </div>
-      <div class="bg-white p-4 rounded-xl shadow-sm border border-amber-200">
-        <div class="flex items-center justify-between"><p class="text-[10px] uppercase font-bold text-amber-600">Brecha principal</p><i data-lucide="alert-triangle" class="w-4 h-4 text-amber-600"></i></div>
-        <p id="brechaTexto" class="text-sm font-bold text-slate-800 mt-2">Calculando...</p>
-      </div>
-      <div class="bg-white p-4 rounded-xl shadow-sm border border-blue-200">
-        <div class="flex items-center justify-between"><p class="text-[10px] uppercase font-bold text-blue-600">Próxima acción</p><i data-lucide="route" class="w-4 h-4 text-blue-600"></i></div>
-        <p id="accionTexto" class="text-sm font-bold text-slate-800 mt-2">Calculando...</p>
-      </div>
-    </section>
-
-    <!-- PESTAÑA 1: CONTROL DE AULAS -->
-    <div id="sec-aulas" class="app-section space-y-4">
-      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 space-y-4">
-        
-        <!-- Pestañas de Días -->
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b pb-3">
-          <span class="text-xs font-bold text-slate-500 uppercase">Día de la semana:</span>
-          <div class="flex flex-wrap gap-1" id="diasTabs">
-            <button onclick="seleccionarDia('LUN')" class="tab-dia px-3 py-1.5 rounded-lg text-xs font-bold transition">LUN</button>
-            <button onclick="seleccionarDia('MAR')" class="tab-dia px-3 py-1.5 rounded-lg text-xs font-bold transition">MAR</button>
-            <button onclick="seleccionarDia('MIE')" class="tab-dia px-3 py-1.5 rounded-lg text-xs font-bold transition">MIÉ</button>
-            <button onclick="seleccionarDia('JUE')" class="tab-dia px-3 py-1.5 rounded-lg text-xs font-bold transition">JUE</button>
-            <button onclick="seleccionarDia('VIE')" class="tab-dia px-3 py-1.5 rounded-lg text-xs font-bold transition">VIE</button>
-            <button onclick="seleccionarDia('SAB')" class="tab-dia px-3 py-1.5 rounded-lg text-xs font-bold transition">SÁB</button>
-          </div>
-        </div>
-
-        <!-- Filtros secundarios -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 bg-slate-50 p-3 rounded-lg border border-slate-200">
-          <div>
-            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Turno</label>
-            <select id="fTurno" onchange="renderizarAulas()" class="w-full text-xs border rounded p-1.5 bg-white">
-              <option value="TODOS">Todos los Turnos</option>
-              <option value="MAÑANA">Mañana (07:00 - 12:00)</option>
-              <option value="TARDE">Tarde (12:00 - 18:00)</option>
-              <option value="NOCHE">Noche (18:00 - 22:00)</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Capacidad / Rango</label>
-            <select id="fCapacidad" onchange="renderizarAulas()" class="w-full text-xs border rounded p-1.5 bg-white">
-              <option value="TODOS">Todas las Capacidades</option>
-              <option value="CRITICA">Masivas (>80 alumnos)</option>
-              <option value="GRANDE">Grandes (50 - 79 alumnos)</option>
-              <option value="MEDIANA">Medianas (20 - 49 alumnos)</option>
-              <option value="PEQUENA">Pequeñas (<20 alumnos)</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Estado Visita</label>
-            <select id="fEstado" onchange="renderizarAulas()" class="w-full text-xs border rounded p-1.5 bg-white">
-              <option value="TODOS">Todos los Estados</option>
-              <option value="PENDIENTE">Solo Pendientes</option>
-              <option value="VISITADO">Solo Visitados</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Buscar</label>
-            <input type="text" id="fBusqueda" oninput="renderizarAulas()" placeholder="Aula, docente, materia..." class="w-full text-xs border rounded p-1.5 bg-white">
-          </div>
-        </div>
-
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-blue-50 border border-blue-100 rounded-lg p-3">
-          <div class="flex flex-wrap items-center gap-3">
-            <label class="flex items-center gap-2"><input id="soloVigentes" type="checkbox" checked onchange="renderizarAulas()" class="w-4 h-4"><span class="text-xs font-bold text-slate-700">Ocultar clases que ya terminaron</span></label>
-            <label class="flex items-center gap-2"><input id="ocultarCubiertos" type="checkbox" checked onchange="renderizarAulas()" class="w-4 h-4">
-            <label for="ocultarCubiertos" class="text-xs font-bold text-slate-700">Ocultar horarios repetidos ya cubiertos</label>
-          </div>
-          <div class="flex gap-2">
-            <button onclick="abrirModalNuevoHorario()" class="touch-btn bg-slate-900 text-white px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-2"><i data-lucide="plus" class="w-4 h-4"></i> Nuevo horario</button>
-            <button onclick="seleccionarSoloPendientes()" class="touch-btn bg-white border border-slate-300 text-slate-700 px-3 py-2 rounded-lg text-xs font-bold">Solo pendientes</button>
-          </div>
-        </div>
-
-        <!-- Grid de Aulas -->
-        <div id="gridAulas" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <!-- Tarjetas renderizadas dinámicamente -->
-        </div>
-      </div>
-    </div>
-
-    <!-- PESTAÑA 2: ESTRUCTURA CURSOS -> MATERIAS -> GRUPOS -->
-    <div id="sec-cursos" class="app-section space-y-4">
-      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-        <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4 border-b pb-2">
-          Mapeo de Cursos, Materias y Grupos
-        </h3>
-        <div id="treeCursosContainer" class="space-y-3">
-          <!-- Acordeón renderizado dinámicamente -->
-        </div>
-      </div>
-    </div>
-
-    <!-- PESTAÑA 3: REPORTES DE DOCENTES -->
-    <div id="sec-docentes" class="app-section space-y-4">
-      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 border-b pb-3">
-          <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider">
-            Listado de Docentes y Carga Horaria
-          </h3>
-          <input type="text" id="bDocente" oninput="renderizarDocentes()" placeholder="Buscar docente o materia..." class="text-xs border rounded px-3 py-1.5 w-full sm:w-64 bg-white">
-        </div>
-        <div class="overflow-x-auto">
-          <table class="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr class="bg-slate-100 border-b border-slate-200 text-slate-600 font-bold uppercase">
-                <th class="p-3">Docente</th>
-                <th class="p-3">Materias / Grupos</th>
-                <th class="p-3 text-center">Horas Semanales</th>
-                <th class="p-3 text-center">Horas Mensuales (x4)</th>
-                <th class="p-3 text-center">Estudiantes Únicos</th>
-                <th class="p-3 text-right">Acción</th>
-              </tr>
-            </thead>
-            <tbody id="tablaDocentesBody" class="divide-y divide-slate-200">
-              <!-- Filas de docentes -->
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- PESTAÑA 4: GRÁFICAS -->
-    <div id="sec-graficas" class="app-section space-y-6">
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-          <h4 class="text-xs font-bold text-slate-600 uppercase mb-3">Top 10 Docentes con Más Estudiantes</h4>
-          <canvas id="chartDocentesEstudiantes" class="max-h-64"></canvas>
-        </div>
-        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-          <h4 class="text-xs font-bold text-slate-600 uppercase mb-3">Top 10 Docentes por Carga Horaria Mensual</h4>
-          <canvas id="chartDocentesHoras" class="max-h-64"></canvas>
-        </div>
-        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-          <h4 class="text-xs font-bold text-slate-600 uppercase mb-3">Distribución de Estudiantes por Curso</h4>
-          <canvas id="chartEstudiantesCurso" class="max-h-64"></canvas>
-        </div>
-        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-          <h4 class="text-xs font-bold text-slate-600 uppercase mb-3">Distribución de Clases por Turno</h4>
-          <canvas id="chartTurnos" class="max-h-64"></canvas>
-        </div>
-        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 md:col-span-2">
-          <h4 class="text-xs font-bold text-slate-600 uppercase mb-3">Cobertura por semestre / curso</h4>
-          <canvas id="chartSemestres" class="max-h-72"></canvas>
-        </div>
-      </div>
-    </div>
-
-  </main>
-
-  <!-- NAVEGACIÓN MÓVIL -->
-  <nav class="mobile-nav md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur border-t border-slate-200 shadow-2xl grid grid-cols-4">
-    <button onclick="cambiarTab('inicio')" class="p-2 text-[10px] font-bold text-slate-600 flex flex-col items-center gap-1" data-mobile-tab="inicio"><i data-lucide="layout-dashboard" class="w-5 h-5"></i>Inicio</button>
-    <button onclick="cambiarTab('aulas')" class="p-2 text-[10px] font-bold text-slate-600 flex flex-col items-center gap-1" data-mobile-tab="aulas"><i data-lucide="route" class="w-5 h-5"></i>Ruta</button>
-    <button onclick="cambiarTab('datos')" class="p-2 text-[10px] font-bold text-slate-600 flex flex-col items-center gap-1" data-mobile-tab="datos"><i data-lucide="database" class="w-5 h-5"></i>Datos</button>
-    <button onclick="cambiarTab('graficas')" class="p-2 text-[10px] font-bold text-slate-600 flex flex-col items-center gap-1" data-mobile-tab="graficas"><i data-lucide="bar-chart-3" class="w-5 h-5"></i>Análisis</button>
-  </nav>
-
-  <!-- MODAL EDICIÓN / NUEVO HORARIO -->
-  <div id="modalHorario" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm hidden items-center justify-center p-3 z-[60]">
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-hidden flex flex-col">
-      <div class="p-4 bg-slate-900 text-white flex justify-between items-center">
-        <div><p class="text-[10px] uppercase tracking-widest text-blue-300 font-bold" id="horarioModalTipo">Editar registro</p><h3 class="text-base font-bold">Datos del horario</h3></div>
-        <button onclick="cerrarModalHorario()" class="p-2 hover:bg-slate-800 rounded-lg"><i data-lucide="x" class="w-5 h-5"></i></button>
-      </div>
-      <form id="formHorario" onsubmit="guardarHorario(event)" class="p-4 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-        <input type="hidden" id="hId">
-        <div><label class="font-bold text-slate-600">Día</label><select id="hDia" class="mt-1 w-full border rounded-lg p-2"><option>LUN</option><option>MAR</option><option>MIE</option><option>JUE</option><option>VIE</option><option>SAB</option></select></div>
-        <div><label class="font-bold text-slate-600">Turno</label><select id="hTurno" class="mt-1 w-full border rounded-lg p-2"><option>MAÑANA</option><option>TARDE</option><option>NOCHE</option></select></div>
-        <div><label class="font-bold text-slate-600">Hora entrada</label><input id="hEntrada" required type="time" class="mt-1 w-full border rounded-lg p-2"></div>
-        <div><label class="font-bold text-slate-600">Hora salida</label><input id="hSalida" required type="time" class="mt-1 w-full border rounded-lg p-2"></div>
-        <div><label class="font-bold text-slate-600">Aula</label><input id="hAula" class="mt-1 w-full border rounded-lg p-2" placeholder="Ej. 204"></div>
-        <div><label class="font-bold text-slate-600">Edificio</label><input id="hEdificio" class="mt-1 w-full border rounded-lg p-2"></div>
-        <div class="sm:col-span-2"><label class="font-bold text-slate-600">Materia</label><input id="hMateria" required class="mt-1 w-full border rounded-lg p-2"></div>
-        <div><label class="font-bold text-slate-600">Grupo</label><input id="hGrupo" class="mt-1 w-full border rounded-lg p-2"></div>
-        <div><label class="font-bold text-slate-600">Curso / semestre</label><input id="hCurso" class="mt-1 w-full border rounded-lg p-2"></div>
-        <div class="sm:col-span-2"><label class="font-bold text-slate-600">Docente</label><input id="hDocente" class="mt-1 w-full border rounded-lg p-2"></div>
-        <div><label class="font-bold text-slate-600">Carrera</label><input id="hCarrera" required class="mt-1 w-full border rounded-lg p-2"></div>
-        <div><label class="font-bold text-slate-600">Estudiantes reales / programados</label><input id="hProgramados" required type="number" min="0" class="mt-1 w-full border rounded-lg p-2"></div>
-        <div class="sm:col-span-2 flex flex-col sm:flex-row gap-2 pt-2">
-          <button type="submit" class="touch-btn flex-1 bg-blue-600 text-white rounded-lg p-3 font-bold flex items-center justify-center gap-2"><i data-lucide="save" class="w-4 h-4"></i> Guardar cambios</button>
-          <button type="button" onclick="cerrarModalHorario()" class="touch-btn bg-slate-100 text-slate-700 rounded-lg p-3 font-bold">Cancelar</button>
-          <button type="button" id="btnEliminarHorario" onclick="eliminarHorarioActual()" class="hidden touch-btn bg-red-50 text-red-700 border border-red-200 rounded-lg p-3 font-bold">Eliminar registro</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- MODAL FICHA DE DOCENTE -->
-  <div id="modalDocente" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-      <div class="p-4 bg-slate-900 text-white flex justify-between items-center">
-        <div>
-          <h3 class="text-base font-bold" id="mDocenteNombre">Nombre Docente</h3>
-          <p class="text-xs text-slate-400" id="mDocenteResumen">Resumen de carga lectiva</p>
-        </div>
-        <button onclick="cerrarModalDocente()" class="text-slate-400 hover:text-white">
-          <i data-lucide="x" class="w-5 h-5"></i>
-        </button>
-      </div>
-      <div class="p-4 overflow-y-auto space-y-4 text-xs" id="mDocenteContenido">
-        <!-- Detalle de materias y clases -->
-      </div>
-    </div>
-  </div>
-
-  <!-- LÓGICA JAVASCRIPT -->
-  <script>
-    let datosExcelBase = [];
-    let datosRaw = [];
-    let registrosCustom = {};
-    let carrerasDisponibles = [];
-    let carrerasSeleccionadas = new Set();
-    let diaActual = 'LUN';
-    let estadoVisitas = {};
-    let estadoConteoReal = {};
-    let charts = {};
-    let unsubscribeVisitas = null;
-    let unsubscribeCustom = null;
-    let onlineNow = navigator.onLine;
-    let relojTimer = null;
-
-    window.addEventListener('DOMContentLoaded', () => {
-      lucide.createIcons();
-      inicializarDias();
-      cargarExcelPorDefecto();
-      conectarFirebase();
-      iniciarReloj();
-      actualizarEstadoConexion();
-      window.addEventListener('online', actualizarEstadoConexion);
-      window.addEventListener('offline', actualizarEstadoConexion);
-      setInterval(() => { renderizarPrioridades(); }, 60000);
-    });
-
-    function inicializarDias() {
-      const dias = ['DOM', 'LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB'];
-      const hoy = dias[new Date().getDay()];
-      diaActual = (hoy === 'DOM' || hoy === 'SAB') ? 'LUN' : hoy;
-      renderizarTabsDias();
-    }
-
-    function conectarFirebase() {
-      const checkDB = setInterval(() => {
-        if (window.db) {
-          clearInterval(checkDB);
-          actualizarEstadoConexion(true);
-
-          unsubscribeVisitas = window.onSnapshot(window.collection(window.db, "visitas_aulas"), (snapshot) => {
-            estadoVisitas = {};
-            estadoConteoReal = {};
-            snapshot.forEach(ds => {
-              const data = ds.data();
-              if (data.visitado) estadoVisitas[data.id] = true;
-              if (data.conteoReal !== undefined) estadoConteoReal[data.id] = Number(data.conteoReal) || 0;
-            });
-            actualizarTodo();
-          }, () => { document.getElementById('dbStatus').innerText = 'Firestore: revisar reglas de acceso'; });
-
-          unsubscribeCustom = window.onSnapshot(window.collection(window.db, "horarios_custom"), (snapshot) => {
-            registrosCustom = {};
-            snapshot.forEach(ds => registrosCustom[ds.id] = ds.data());
-            reconstruirDatos();
-          }, () => {});
-        }
-      }, 300);
-    }
-
-    function reconstruirDatos(){
-      const base = datosExcelBase.map(x => ({...x}));
-      const usados = new Set();
-      Object.values(registrosCustom).forEach(c => {
-        if (c._deleted && c._base) { usados.add(c.id); return; }
-        const idx = base.findIndex(x => x.id === c.id);
-        if (idx >= 0) base[idx] = {...base[idx], ...c};
-        else if (!c._deleted) base.push({...c});
-      });
-      datosRaw = base.filter(x => !usados.has(x.id));
-      carrerasDisponibles = [...new Set(datosRaw.map(d => d.carrera).filter(Boolean))].sort();
-      const validas = [...carrerasSeleccionadas].filter(c => carrerasDisponibles.includes(c));
-      carrerasSeleccionadas = new Set(validas.length ? validas : carrerasDisponibles);
-      renderizarFiltroCarreras();
-      actualizarTodo();
-    }
-
-    async function cargarExcelPorDefecto() {
-      try {
-        const response = await fetch('torres.xlsx');
-        if (!response.ok) throw new Error('No se encontró torres.xlsx');
-        const buffer = await response.arrayBuffer();
-        procesarExcelBuffer(buffer);
-      } catch (err) {
-        document.getElementById('dbStatus').innerText = 'Por favor carga el archivo torres.xlsx manualmente';
-      }
-    }
-
-    document.getElementById('excelUpload').addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (evt) => procesarExcelBuffer(evt.target.result);
-      reader.readAsArrayBuffer(file);
-    });
-
-    function procesarExcelBuffer(buffer) {
-      const workbook = XLSX.read(buffer, { type: 'array' });
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const json = XLSX.utils.sheet_to_json(sheet, { defval: "" });
-
-      datosExcelBase = json.map((row, index) => {
-        const getVal = (keys) => {
-          for (let k of keys) {
-            const found = Object.keys(row).find(rk => rk.trim().toLowerCase() === k.toLowerCase());
-            if (found) return row[found];
-          }
-          return '';
-        };
-
-        const diaRaw = String(getVal(['Dia', 'Día'])).trim().toUpperCase();
-        let diaNorm = 'LUN';
-        if (diaRaw.includes('LUN')) diaNorm = 'LUN';
-        else if (diaRaw.includes('MAR')) diaNorm = 'MAR';
-        else if (diaRaw.includes('MIE') || diaRaw.includes('MIÉ')) diaNorm = 'MIE';
-        else if (diaRaw.includes('JUE')) diaNorm = 'JUE';
-        else if (diaRaw.includes('VIE')) diaNorm = 'VIE';
-        else if (diaRaw.includes('SAB') || diaRaw.includes('SÁB')) diaNorm = 'SAB';
-
-        const hEntrada = String(getVal(['Hora Entrada', 'HoraEntrada'])).trim();
-        const hSalida = String(getVal(['Hora Salida', 'HoraSalida'])).trim();
-        const programados = parseInt(getVal(['Nro de programados', 'Programados'])) || 0;
-
-        return {
-          id: `row_${index}`,
-          dia: diaNorm,
-          horaEntrada: hEntrada,
-          horaSalida: hSalida,
-          duracionHoras: calcularDuracion(hEntrada, hSalida),
-          turno: calcularTurno(hEntrada),
-          aula: String(getVal(['Aula'])).trim(),
-          edificio: String(getVal(['Edificio'])).trim(),
-          materia: String(getVal(['Materia'])).trim(),
-          grupo: String(getVal(['Grupo'])).trim() || 'A',
-          curso: String(getVal(['Curso'])).trim() || '1',
-          docente: String(getVal(['Docente'])).trim() || 'Sin Docente',
-          carrera: String(getVal(['Carrera'])).trim(),
-          programados: programados
-        };
-      });
-
-      carrerasDisponibles = [...new Set(datosExcelBase.map(d => d.carrera).filter(Boolean))].sort();
-      carrerasSeleccionadas = new Set(carrerasDisponibles);
-      reconstruirDatos();
-    }
-
-    function calcularDuracion(h1, h2) {
-      if (!h1 || !h2) return 2;
-      const p1 = h1.split(':').map(Number);
-      const p2 = h2.split(':').map(Number);
-      const m1 = p1[0] * 60 + (p1[1] || 0);
-      const m2 = p2[0] * 60 + (p2[1] || 0);
-      const diff = (m2 - m1) / 60;
-      return diff > 0 ? diff : 2;
-    }
-
-    function calcularTurno(horaStr) {
-      if (!horaStr) return 'MAÑANA';
-      const h = parseInt(horaStr.split(':')[0]) || 7;
-      if (h < 12) return 'MAÑANA';
-      if (h < 18) return 'TARDE';
-      return 'NOCHE';
-    }
-
-    function renderizarFiltroCarreras() {
-      const container = document.getElementById('carrerasContainer');
-      container.innerHTML = '';
-
-      carrerasDisponibles.forEach(carrera => {
-        const active = carrerasSeleccionadas.has(carrera);
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = `px-3 py-1.5 rounded-full text-xs font-semibold border transition flex items-center gap-1.5 ${
-          active 
-            ? 'bg-blue-600 text-white border-blue-600 shadow-sm' 
-            : 'bg-slate-100 text-slate-600 border-slate-300 hover:bg-slate-200'
-        }`;
-        btn.innerHTML = `${active ? '✔' : ''} ${carrera}`;
-        btn.onclick = () => {
-          if (carrerasSeleccionadas.has(carrera)) carrerasSeleccionadas.delete(carrera);
-          else carrerasSeleccionadas.add(carrera);
-          renderizarFiltroCarreras();
-          actualizarTodo();
-        };
-        container.appendChild(btn);
-      });
-    }
-
-    function toggleTodasCarreras() {
-      if (carrerasSeleccionadas.size === carrerasDisponibles.length) {
-        carrerasSeleccionadas.clear();
-        document.getElementById('btnToggleCarreras').innerText = 'Seleccionar Todas';
-      } else {
-        carrerasSeleccionadas = new Set(carrerasDisponibles);
-        document.getElementById('btnToggleCarreras').innerText = 'Desmarcar Todas';
-      }
-      renderizarFiltroCarreras();
-      actualizarTodo();
-    }
-
-    function actualizarTodo() {
-      const datosFiltrados = datosRaw.filter(d => carrerasSeleccionadas.has(d.carrera));
-
-      calcularMetricas(datosFiltrados);
-      renderizarAulas();
-      renderizarCursosArbol(datosFiltrados);
-      renderizarDocentes();
-      renderizarGraficas(datosFiltrados);
-      actualizarResumenPolitico(datosFiltrados);
-      renderizarPrioridades();
-      lucide.createIcons();
-    }
-
-    function calcularMetricas(datos) {
-      const gruposMap=new Map();
-      datos.forEach(d=>{const key=claveGrupo(d); const prev=gruposMap.get(key); if(!prev || (d.programados||0)>prev.programados) gruposMap.set(key,{programados:d.programados||0,visitado:!!estadoVisitas[d.id],real:estadoConteoReal[d.id]}); else if(estadoVisitas[d.id]){prev.visitado=true;prev.real=Math.max(prev.real||0,estadoConteoReal[d.id]||d.programados||0);}});
-      let totalEstudiantes=0,totalContactados=0; gruposMap.forEach(g=>{totalEstudiantes+=g.programados;if(g.visitado)totalContactados+=g.real!==undefined?g.real:g.programados;});
-      const aulasVisitadas=new Set(datos.filter(d=>estadoVisitas[d.id]&&d.aula).map(d=>`${d.carrera}|${d.aula}`));
-      document.getElementById('mTotalEstudiantes').innerText=totalEstudiantes.toLocaleString();
-      document.getElementById('mTotalContactados').innerText=totalContactados.toLocaleString();
-      document.getElementById('mPorcentajeContactados').innerText=`${totalEstudiantes?Math.min(100,Math.round(totalContactados/totalEstudiantes*100)):0}% cobertura real`;
-      document.getElementById('mTotalAulas').innerText=datos.length.toLocaleString();
-      document.getElementById('mAulasVisitadas').innerText=aulasVisitadas.size.toLocaleString();
-      const aulasTotal=new Set(datos.filter(d=>d.aula).map(d=>`${d.carrera}|${d.aula}`)).size;
-      document.getElementById('mPorcentajeAulas').innerText=`${aulasTotal?Math.round(aulasVisitadas.size/aulasTotal*100):0}% de aulas físicas`;
-    }
-
-    function claveGrupo(d){ return `${d.carrera}|${d.curso}|${d.materia}|${d.grupo}`; }
-    function gruposCubiertos(){
-      const s=new Set(); datosRaw.forEach(d=>{ if(estadoVisitas[d.id]) s.add(claveGrupo(d)); }); return s;
-    }
-    function puntajePrioridad(d){
-      const max = Math.max(1, ...datosRaw.map(x=>Number(x.programados)||0));
-      const alumnos = (Number(d.programados)||0)/max*70;
-      const repeticion = datosRaw.filter(x=>claveGrupo(x)===claveGrupo(d)).length > 1 ? 10 : 0;
-      const turno = d.turno === document.getElementById('rTurno')?.value ? 10 : 0;
-      return Math.round(alumnos + repeticion + turno);
-    }
-    function prioridadLabel(score){ return score>=75?'ALTA':score>=50?'MEDIA':'NORMAL'; }
-
-    function actualizarResumenPolitico(datos){
-      const grupos=new Map();
-      datos.forEach(d=>{const k=claveGrupo(d); if(!grupos.has(k)) grupos.set(k,{n:d.programados,visitado:false,curso:d.curso}); if(estadoVisitas[d.id]) grupos.get(k).visitado=true;});
-      let total=0,cubiertos=0; grupos.forEach(g=>{total+=g.n||0;if(g.visitado)cubiertos+=g.n||0;});
-      const pct=total?Math.round(cubiertos/total*100):0;
-      const cursos={}; datos.forEach(d=>{const c=String(d.curso||'Sin curso'); if(!cursos[c])cursos[c]={total:0,cub:0}; cursos[c].total+=d.programados||0; if(estadoVisitas[d.id])cursos[c].cub+=d.programados||0;});
-      const orden=Object.entries(cursos).sort((a,b)=>(b[1].total-b[1].cub)-(a[1].total-a[1].cub));
-      const fort=Object.entries(cursos).sort((a,b)=>(b[1].cub/(b[1].total||1))-(a[1].cub/(a[1].total||1)))[0];
-      const brecha=orden[0];
-      document.getElementById('fortalezaTexto').textContent = fort ? `Curso ${fort[0]} con ${Math.round(fort[1].cub/(fort[1].total||1)*100)}% de cobertura.` : 'Aún sin datos suficientes.';
-      document.getElementById('brechaTexto').textContent = brecha ? `Curso ${brecha[0]} concentra ${Math.max(0,brecha[1].total-brecha[1].cub).toLocaleString()} estudiantes pendientes.` : 'Sin brechas detectadas.';
-      document.getElementById('accionTexto').textContent = pct<50 ? 'Atacar primero grupos masivos y no visitados.' : pct<80 ? 'Cerrar los grupos pendientes de mayor tamaño.' : 'Completar los últimos grupos y validar datos.';
-    }
-
-    function minutos(h){ if(!h) return 0; const [hh,mm]=String(h).split(':').map(Number); return (hh||0)*60+(mm||0); }
-    function ahoraMinutos(){ const d=new Date(); return d.getHours()*60+d.getMinutes(); }
-    function diaHoyNorm(){ const dias=['DOM','LUN','MAR','MIE','JUE','VIE','SAB']; return dias[new Date().getDay()]; }
-    function horarioYaTermino(d){ return d.dia===diaHoyNorm() && minutos(d.horaSalida)<=ahoraMinutos(); }
-    function horarioEnCurso(d){ return d.dia===diaHoyNorm() && minutos(d.horaEntrada)<=ahoraMinutos() && minutos(d.horaSalida)>ahoraMinutos(); }
-    function renderizarPrioridades(){
-      const dia=document.getElementById('rDia')?.value || diaActual;
-      const turno=document.getElementById('rTurno')?.value||'MAÑANA';
-      const solo=document.getElementById('rSoloLlegables')?.checked ?? true;
-      const cub=gruposCubiertos();
-      let list=datosRaw.filter(d=>carrerasSeleccionadas.has(d.carrera)&&d.dia===dia&&d.turno===turno&&!cub.has(claveGrupo(d)));
-      if(solo && dia===diaHoyNorm()) list=list.filter(d=>!horarioYaTermino(d));
-      const vistosIds=new Set(); list=list.filter(d=>{const k=claveGrupo(d); if(vistosIds.has(k))return false; vistosIds.add(k); return true;});
-      list.sort((a,b)=>{
-        const ea=horarioEnCurso(a)?0:1, eb=horarioEnCurso(b)?0:1;
-        return ea-eb || minutos(a.horaEntrada)-minutos(b.horaEntrada) || b.programados-a.programados;
-      });
-      const top=list.slice(0,15);
-      const totalEst=list.reduce((s,d)=>s+(Number(d.programados)||0),0);
-      document.getElementById('prioridadesResumen').innerHTML=`
-        <div class="bg-slate-50 border rounded-xl p-3"><p class="text-[10px] uppercase font-bold text-slate-500">Ruta</p><p class="text-xl font-extrabold">${dia} · ${turno}</p></div>
-        <div class="bg-red-50 border border-red-100 rounded-xl p-3"><p class="text-[10px] uppercase font-bold text-red-600">15 primeras</p><p class="text-xl font-extrabold text-red-700">${top.length} clases</p></div>
-        <div class="bg-blue-50 border border-blue-100 rounded-xl p-3"><p class="text-[10px] uppercase font-bold text-blue-600">Estudiantes potenciales</p><p class="text-xl font-extrabold text-blue-700">${top.reduce((s,d)=>s+(Number(d.programados)||0),0).toLocaleString()}</p></div>`;
-      const c=document.getElementById('prioridadesLista'); c.innerHTML='';
-      if(!top.length){c.innerHTML='<div class="md:col-span-3 text-center text-xs text-slate-400 py-8">No quedan clases prioritarias para este día y turno con los filtros actuales.</div>';return;}
-      top.forEach((d,i)=>{
-        const score=puntajePrioridad(d), nivel=prioridadLabel(score), enCurso=horarioEnCurso(d);
-        const el=document.createElement('article');
-        el.className=`text-left p-3 rounded-xl bg-white border shadow-sm priority-${i<3?i+1:3}`;
-        el.innerHTML=`<div class="flex justify-between gap-2"><span class="text-[10px] font-extrabold text-slate-400">#${i+1}</span><span class="text-[10px] font-extrabold ${enCurso?'text-emerald-600':score>=75?'text-red-600':score>=50?'text-amber-600':'text-blue-600'}">${enCurso?'AHORA':nivel}</span></div><p class="font-extrabold text-base text-slate-900 mt-1">${d.aula||'S/A'} · ${d.programados} est.</p><p class="text-xs font-bold text-slate-700 truncate">${d.materia} · Grupo ${d.grupo}</p><p class="text-[10px] text-slate-500">${d.horaEntrada}-${d.horaSalida} · Curso ${d.curso}</p><p class="text-[10px] text-slate-400 mt-1 truncate">${d.docente}</p><div class="grid grid-cols-2 gap-2 mt-2"><button onclick="seleccionarYMarcar('${d.id}')" class="touch-btn bg-emerald-600 text-white rounded-lg py-2 text-[11px] font-extrabold">Asistí / marcar</button><button onclick="abrirEdicionHorario('${d.id}')" class="touch-btn bg-slate-100 text-slate-700 rounded-lg py-2 text-[11px] font-extrabold">Editar</button></div>`;
-        c.appendChild(el);
-      }); lucide.createIcons();
-    }
-    function seleccionarYMarcar(id){ diaActual=(datosRaw.find(d=>d.id===id)||{}).dia||diaActual; cambiarTab('aulas'); setTimeout(()=>toggleVisita(id),50); }
-    function irAPrioridades(){ cambiarTab('inicio'); }
-    function seleccionarSoloPendientes(){ document.getElementById('fEstado').value='PENDIENTE'; renderizarAulas(); }
-
-    function renderizarTabsDias() {
-      document.querySelectorAll('.tab-dia').forEach(btn => {
-        const d = btn.innerText.replace('É', 'E');
-        if (d === diaActual) {
-          btn.className = 'tab-dia px-3 py-1.5 rounded-lg text-xs font-bold transition bg-blue-600 text-white shadow';
-        } else {
-          btn.className = 'tab-dia px-3 py-1.5 rounded-lg text-xs font-bold transition bg-slate-100 text-slate-600 hover:bg-slate-200';
-        }
-      });
-    }
-
-    function seleccionarDia(d) {
-      diaActual = d;
-      renderizarTabsDias();
-      renderizarAulas();
-    }
-
-    function renderizarAulas() {
-      const container=document.getElementById('gridAulas'); container.innerHTML='';
-      const tSel=document.getElementById('fTurno').value, cSel=document.getElementById('fCapacidad').value;
-      const eSel=document.getElementById('fEstado').value, bSel=document.getElementById('fBusqueda').value.toLowerCase();
-      const ocultar=document.getElementById('ocultarCubiertos')?.checked ?? true; const soloVigentes=document.getElementById('soloVigentes')?.checked ?? true;
-      const cub=gruposCubiertos();
-      let list=datosRaw.filter(d=>carrerasSeleccionadas.has(d.carrera)&&d.dia===diaActual);
-      if(tSel!=='TODOS') list=list.filter(d=>d.turno===tSel);
-      if(eSel==='PENDIENTE') list=list.filter(d=>!estadoVisitas[d.id]);
-      if(eSel==='VISITADO') list=list.filter(d=>estadoVisitas[d.id]);
-      if(cSel!=='TODOS') list=list.filter(d=>cSel==='CRITICA'?d.programados>=80:cSel==='GRANDE'?d.programados>=50&&d.programados<80:cSel==='MEDIANA'?d.programados>=20&&d.programados<50:d.programados<20);
-      if(bSel) list=list.filter(d=>[d.aula,d.materia,d.docente,d.edificio,d.curso,d.grupo].some(v=>String(v||'').toLowerCase().includes(bSel)));
-      if(ocultar && eSel!=='VISITADO') list=list.filter(d=>!cub.has(claveGrupo(d))); if(soloVigentes && diaActual===diaHoyNorm()) list=list.filter(d=>!horarioYaTermino(d));
-      list.sort((a,b)=>b.programados-a.programados || a.horaEntrada.localeCompare(b.horaEntrada));
-      if(!list.length){container.innerHTML='<div class="col-span-full py-12 text-center text-slate-400"><i data-lucide="check-circle-2" class="w-8 h-8 mx-auto mb-2 text-emerald-400"></i><p class="text-sm font-bold">No hay visitas pendientes con estos filtros.</p><p class="text-xs mt-1">Prueba mostrando los horarios cubiertos o cambia el turno.</p></div>';lucide.createIcons();return;}
-      list.forEach(item=>{
-        const esVisitado=!!estadoVisitas[item.id], estaCubierto=cub.has(claveGrupo(item)) && !esVisitado;
-        const conteoActual=estadoConteoReal[item.id]!==undefined?estadoConteoReal[item.id]:item.programados;
-        let claseEstilo=item.programados>=80?'card-critica':item.programados>=50?'card-grande':item.programados<20?'card-pequena':'card-mediana';
-        const score=puntajePrioridad(item), nivel=prioridadLabel(score);
-        const card=document.createElement('article'); card.className=`p-4 rounded-xl shadow-sm transition space-y-3 relative ${claseEstilo} ${esVisitado?'card-visited':''} ${estaCubierto?'card-covered':''}`;
-        card.innerHTML=`
-          <div class="flex justify-between items-start gap-2">
-            <div class="min-w-0"><span class="text-[11px] font-bold text-slate-700 bg-white/80 px-2 py-1 rounded border">${item.horaEntrada} - ${item.horaSalida}</span><h4 class="text-lg font-extrabold text-slate-900 mt-2">Aula ${item.aula||'S/A'}</h4><p class="text-[10px] text-slate-500">${item.edificio||'Edificio no registrado'} · ${item.dia}</p></div>
-            <span class="text-[10px] font-extrabold px-2 py-1 rounded-full uppercase ${esVisitado?'bg-emerald-600 text-white':estaCubierto?'bg-slate-400 text-white':score>=75?'bg-red-600 text-white':score>=50?'bg-amber-500 text-white':'bg-blue-600 text-white'}">${esVisitado?'Visitado':estaCubierto?'Cubierto':nivel}</span>
-          </div>
-          <div class="border-t border-slate-200/70 pt-2 space-y-1"><p class="text-sm font-extrabold text-slate-800">${item.materia} <span class="text-blue-600">· Grupo ${item.grupo}</span></p><p class="text-xs text-slate-600">${item.docente}</p><p class="text-[10px] text-slate-500">${item.carrera} · Curso/Semestre ${item.curso}</p></div>
-          <div class="bg-white/90 p-2 rounded-lg border border-slate-200 flex justify-between items-center"><div><span class="text-[9px] font-bold text-slate-400 block uppercase">Estudiantes</span><span class="text-xs text-slate-600">Base: <strong>${item.programados}</strong></span></div><div class="flex items-center gap-1.5"><button onclick="modificarConteo('${item.id}',-1)" class="touch-btn w-9 h-9 rounded bg-slate-200 font-bold">−</button><span class="text-sm font-extrabold text-slate-900 w-8 text-center">${conteoActual}</span><button onclick="modificarConteo('${item.id}',1)" class="touch-btn w-9 h-9 rounded bg-slate-200 font-bold">+</button></div></div>
-          <div class="grid grid-cols-2 gap-2"><button onclick="toggleVisita('${item.id}')" class="touch-btn py-2.5 px-2 rounded-lg text-xs font-extrabold flex items-center justify-center gap-1.5 ${esVisitado?'bg-red-100 text-red-700 border border-red-300':'bg-emerald-600 text-white'}">${esVisitado?'Eliminar visita':'Marcar visitada'}</button><button onclick="abrirEdicionHorario('${item.id}')" class="touch-btn py-2.5 px-2 rounded-lg text-xs font-extrabold bg-white border border-slate-300 text-slate-700 flex items-center justify-center gap-1.5"><i data-lucide="pencil" class="w-3.5 h-3.5"></i> Editar datos</button></div>
-          ${estaCubierto?'<p class="text-[10px] font-bold text-slate-500 bg-slate-100 rounded p-2">Este grupo/materia ya tiene una visita registrada. Este horario queda fuera de la ruta para evitar duplicar el recorrido.</p>':''}
-        `;
-        container.appendChild(card);
-      }); lucide.createIcons();
-    }
-
-    function renderizarCursosArbol(datos) {
-      const container = document.getElementById('treeCursosContainer');
-      container.innerHTML = '';
-
-      const cursosMap = {};
-      datos.forEach(d => {
-        if (!cursosMap[d.curso]) cursosMap[d.curso] = {};
-        if (!cursosMap[d.curso][d.materia]) cursosMap[d.curso][d.materia] = {};
-        if (!cursosMap[d.curso][d.materia][d.grupo]) {
-          cursosMap[d.curso][d.materia][d.grupo] = {
-            docente: d.docente,
-            programados: d.programados,
-            sesiones: []
-          };
-        }
-        cursosMap[d.curso][d.materia][d.grupo].sesiones.push(`${d.dia} ${d.horaEntrada}-${d.horaSalida} (Aula ${d.aula})`);
-      });
-
-      Object.keys(cursosMap).sort().forEach(curso => {
-        const divCurso = document.createElement('div');
-        divCurso.className = 'border border-slate-200 rounded-xl overflow-hidden bg-slate-50';
-
-        let htmlMaterias = '';
-        Object.keys(cursosMap[curso]).sort().forEach(materia => {
-          let htmlGrupos = '';
-          Object.keys(cursosMap[curso][materia]).sort().forEach(grupo => {
-            const g = cursosMap[curso][materia][grupo];
-            htmlGrupos += `
-              <div class="bg-white p-2.5 rounded-lg border border-slate-200 text-xs flex flex-col md:flex-row justify-between gap-2">
-                <div>
-                  <span class="font-bold text-blue-700">Grupo ${grupo}</span> - <span>Docente: ${g.docente}</span>
-                  <div class="text-[10px] text-slate-400 mt-0.5">${g.sesiones.join(' | ')}</div>
-                </div>
-                <div class="text-right">
-                  <span class="font-bold text-slate-900">${g.programados}</span>
-                  <span class="text-[10px] text-slate-400 block">estudiantes</span>
-                </div>
-              </div>
-            `;
-          });
-
-          htmlMaterias += `
-            <div class="p-3 bg-white rounded-lg border border-slate-200 space-y-2">
-              <h5 class="font-bold text-xs text-slate-800">${materia}</h5>
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-2">${htmlGrupos}</div>
-            </div>
-          `;
-        });
-
-        divCurso.innerHTML = `
-          <div class="p-3 bg-slate-200 font-bold text-xs text-slate-700 uppercase flex justify-between items-center">
-            <span>Curso / Semestre ${curso}</span>
-          </div>
-          <div class="p-3 space-y-3">${htmlMaterias}</div>
-        `;
-
-        container.appendChild(divCurso);
-      });
-    }
-
-    function renderizarDocentes() {
-      const tbody = document.getElementById('tablaDocentesBody');
-      tbody.innerHTML = '';
-
-      const busqueda = (document.getElementById('bDocente')?.value || '').toLowerCase();
-      const datosFiltrados = datosRaw.filter(d => carrerasSeleccionadas.has(d.carrera));
-
-      const docentesMap = {};
-      datosFiltrados.forEach(d => {
-        if (!docentesMap[d.docente]) {
-          docentesMap[d.docente] = {
-            nombre: d.docente,
-            horasSemanales: 0,
-            gruposUnicos: new Map(),
-            materiasSet: new Set()
-          };
-        }
-
-        docentesMap[d.docente].horasSemanales += d.duracionHoras;
-        docentesMap[d.docente].materiasSet.add(d.materia);
-
-        const keyGrupo = `${d.carrera}_${d.materia}_${d.grupo}`;
-        if (!docentesMap[d.docente].gruposUnicos.has(keyGrupo) || docentesMap[d.docente].gruposUnicos.get(keyGrupo) < d.programados) {
-          docentesMap[d.docente].gruposUnicos.set(keyGrupo, d.programados);
-        }
-      });
-
-      let docentesLista = Object.values(docentesMap);
-
-      if (busqueda) {
-        docentesLista = docentesLista.filter(doc => 
-          doc.nombre.toLowerCase().includes(busqueda) ||
-          Array.from(doc.materiasSet).some(m => m.toLowerCase().includes(busqueda))
-        );
-      }
-
-      docentesLista.sort((a, b) => a.nombre.localeCompare(b.nombre));
-
-      docentesLista.forEach(doc => {
-        let estudiantesUnicos = 0;
-        doc.gruposUnicos.forEach(v => estudiantesUnicos += v);
-
-        const tr = document.createElement('tr');
-        tr.className = 'hover:bg-slate-50 transition';
-        tr.innerHTML = `
-          <td class="p-3 font-bold text-slate-800">${doc.nombre}</td>
-          <td class="p-3 text-slate-600">${Array.from(doc.materiasSet).join(', ')}</td>
-          <td class="p-3 text-center font-bold text-blue-700">${doc.horasSemanales} hrs</td>
-          <td class="p-3 text-center font-bold text-purple-700">${doc.horasSemanales * 4} hrs</td>
-          <td class="p-3 text-center font-bold text-emerald-700">${estudiantesUnicos}</td>
-          <td class="p-3 text-right">
-            <button onclick="abrirModalDocente('${doc.nombre}')" class="px-2.5 py-1 bg-slate-800 text-white rounded text-[11px] font-semibold hover:bg-slate-700">
-              Ver Ficha
-            </button>
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
-    }
-
-    function abrirModalDocente(nombreDocente) {
-      const docData = datosRaw.filter(d => d.docente === nombreDocente && carrerasSeleccionadas.has(d.carrera));
-      if (docData.length === 0) return;
-
-      document.getElementById('mDocenteNombre').innerText = nombreDocente;
-
-      let horasSemanales = 0;
-      const gruposUnicos = new Map();
-
-      docData.forEach(d => {
-        horasSemanales += d.duracionHoras;
-        const k = `${d.carrera}_${d.materia}_${d.grupo}`;
-        if (!gruposUnicos.has(k) || gruposUnicos.get(k) < d.programados) {
-          gruposUnicos.set(k, d.programados);
-        }
-      });
-
-      let alumnosUnicos = 0;
-      gruposUnicos.forEach(v => alumnosUnicos += v);
-
-      document.getElementById('mDocenteResumen').innerText = `${horasSemanales} hrs/sem | ${horasSemanales * 4} hrs/mes | ${alumnosUnicos} alumnos únicos`;
-
-      let htmlClases = '';
-      docData.forEach(c => {
-        htmlClases += `
-          <div class="p-3 bg-slate-50 rounded-lg border border-slate-200 flex justify-between items-center">
-            <div>
-              <p class="font-bold text-slate-800">${c.materia} (Grupo ${c.grupo})</p>
-              <p class="text-slate-500">${c.dia} ${c.horaEntrada}-${c.horaSalida} | Aula: ${c.aula} (${c.edificio})</p>
-              <p class="text-slate-400">${c.carrera}</p>
-            </div>
-            <span class="font-bold text-blue-700 bg-blue-50 px-2 py-1 rounded border border-blue-200">
-              ${c.programados} alumnos
-            </span>
-          </div>
-        `;
-      });
-
-      document.getElementById('mDocenteContenido').innerHTML = htmlClases;
-      document.getElementById('modalDocente').classList.remove('hidden');
-    }
-
-    function cerrarModalDocente() {
-      document.getElementById('modalDocente').classList.add('hidden');
-    }
-
-    function renderizarGraficas(datos) {
-      const ctx1 = document.getElementById('chartDocentesEstudiantes')?.getContext('2d');
-      const ctx2 = document.getElementById('chartDocentesHoras')?.getContext('2d');
-      const ctx3 = document.getElementById('chartSemestres')?.getContext('2d');
-
-      if (!ctx1 || !ctx2) return;
-
-      const docMap = {};
-      datos.forEach(d => {
-        if (!docMap[d.docente]) docMap[d.docente] = { horas: 0, grupos: new Map() };
-        docMap[d.docente].horas += d.duracionHoras;
-        const k = `${d.carrera}_${d.materia}_${d.grupo}`;
-        if (!docMap[d.docente].grupos.has(k) || docMap[d.docente].grupos.get(k) < d.programados) {
-          docMap[d.docente].grupos.set(k, d.programados);
-        }
-      });
-
-      const docentesArr = Object.keys(docMap).map(name => {
-        let est = 0;
-        docMap[name].grupos.forEach(v => est += v);
-        return { nombre: name, estudiantes: est, horasMensuales: docMap[name].horas * 4 };
-      });
-
-      const topEst = [...docentesArr].sort((a,b) => b.estudiantes - a.estudiantes).slice(0, 10);
-      const topHoras = [...docentesArr].sort((a,b) => b.horasMensuales - a.horasMensuales).slice(0, 10);
-
-      if (charts.c1) charts.c1.destroy();
-      charts.c1 = new Chart(ctx1, {
-        type: 'bar',
-        data: {
-          labels: topEst.map(d => d.nombre.split(' ')[0]),
-          datasets: [{ label: 'Estudiantes Únicos', data: topEst.map(d => d.estudiantes), backgroundColor: '#3b82f6' }]
-        },
-        options: { responsive: true, plugins: { legend: { display: false } } }
-      });
-
-      if (charts.c2) charts.c2.destroy();
-      charts.c2 = new Chart(ctx2, {
-        type: 'bar',
-        data: {
-          labels: topHoras.map(d => d.nombre.split(' ')[0]),
-          datasets: [{ label: 'Horas Mensuales', data: topHoras.map(d => d.horasMensuales), backgroundColor: '#8b5cf6' }]
-        },
-        options: { responsive: true, plugins: { legend: { display: false } } }
-      });
-    }
-
-
-      if(ctx3){
-        const sm={}; datos.forEach(d=>{const k=String(d.curso||'Sin curso'); if(!sm[k])sm[k]={total:0,cub:0}; sm[k].total+=d.programados||0; if(estadoVisitas[d.id])sm[k].cub+=d.programados||0;});
-        if(charts.c3) charts.c3.destroy();
-        const labels=Object.keys(sm).sort((a,b)=>Number(a)-Number(b));
-        charts.c3=new Chart(ctx3,{type:'bar',data:{labels,datasets:[{label:'Estudiantes cubiertos',data:labels.map(k=>sm[k].cub)},{label:'Estudiantes pendientes',data:labels.map(k=>Math.max(0,sm[k].total-sm[k].cub))}]},options:{responsive:true,scales:{x:{stacked:true},y:{stacked:true,beginAtZero:true}},plugins:{legend:{position:'bottom'}}}});
-      }
-
-    async function toggleVisita(id) {
-      const nuevoEstado=!estadoVisitas[id]; const item=datosRaw.find(d=>d.id===id); if(!item)return;
-      estadoVisitas[id]=nuevoEstado;
-      if(window.db){
-        try{
-          if(nuevoEstado){
-            await window.setDoc(window.doc(window.db,'visitas_aulas',id),{id,visitado:true,grupoClave:claveGrupo(item),carrera:item.carrera,curso:item.curso,materia:item.materia,grupo:item.grupo,aula:item.aula,docente:item.docente,conteoReal:estadoConteoReal[id]!==undefined?estadoConteoReal[id]:item.programados,fecha:new Date().toISOString()},{merge:true});
-          }else{
-            await window.deleteDoc(window.doc(window.db,'visitas_aulas',id)); delete estadoConteoReal[id];
-          }
-        }catch(err){ console.error(err); alert('La visita quedó guardada localmente. Se sincronizará cuando vuelva el internet.'); }
-      }
-      actualizarTodo();
-    }
-
-    async function modificarConteo(id,delta){
-      const item=datosRaw.find(d=>d.id===id); const prev=estadoConteoReal[id]!==undefined?estadoConteoReal[id]:(item?.programados||0); const n=Math.max(0,prev+delta); estadoConteoReal[id]=n;
-      if(window.db && estadoVisitas[id]){await window.setDoc(window.doc(window.db,'visitas_aulas',id),{id,visitado:true,conteoReal:n,fecha:new Date().toISOString()},{merge:true});}
-      renderizarAulas(); calcularMetricas(datosRaw.filter(d=>carrerasSeleccionadas.has(d.carrera)));
-    }
-
-    function abrirEdicionHorario(id){
-      const d=datosRaw.find(x=>x.id===id); if(!d)return; llenarFormularioHorario(d,false); document.getElementById('modalHorario').classList.remove('hidden');document.getElementById('modalHorario').classList.add('flex');
-    }
-    function abrirModalNuevoHorario(){
-      const d={id:'new_'+Date.now(),dia:diaActual,horaEntrada:'08:00',horaSalida:'10:00',aula:'',edificio:'',materia:'',grupo:'A',curso:'1',docente:'',carrera:carrerasDisponibles[0]||'',programados:0,turno:'MAÑANA'}; llenarFormularioHorario(d,true);document.getElementById('modalHorario').classList.remove('hidden');document.getElementById('modalHorario').classList.add('flex');
-    }
-    function llenarFormularioHorario(d,nuevo){
-      document.getElementById('horarioModalTipo').textContent=nuevo?'Crear nuevo horario':'Editar registro';
-      ['Id','Dia','Entrada','Salida','Aula','Edificio','Materia','Grupo','Curso','Docente','Carrera','Programados'].forEach(k=>{const el=document.getElementById('h'+k);if(el)el.value=d[k.toLowerCase()]??d[k]??'';});
-      document.getElementById('hId').value=d.id;document.getElementById('hDia').value=d.dia;document.getElementById('hEntrada').value=d.horaEntrada;document.getElementById('hSalida').value=d.horaSalida;document.getElementById('hAula').value=d.aula;document.getElementById('hEdificio').value=d.edificio;document.getElementById('hMateria').value=d.materia;document.getElementById('hGrupo').value=d.grupo;document.getElementById('hCurso').value=d.curso;document.getElementById('hDocente').value=d.docente;document.getElementById('hCarrera').value=d.carrera;document.getElementById('hProgramados').value=d.programados;
-      document.getElementById('btnEliminarHorario').classList.toggle('hidden',nuevo || !String(d.id).startsWith('new_'));
-    }
-    function cerrarModalHorario(){const m=document.getElementById('modalHorario');m.classList.add('hidden');m.classList.remove('flex');}
-    async function guardarHorario(e){
-      e.preventDefault(); const id=document.getElementById('hId').value; const original=datosRaw.find(x=>x.id===id); const item={id,dia:document.getElementById('hDia').value,horaEntrada:document.getElementById('hEntrada').value,horaSalida:document.getElementById('hSalida').value,duracionHoras:calcularDuracion(document.getElementById('hEntrada').value,document.getElementById('hSalida').value),turno:calcularTurno(document.getElementById('hEntrada').value),aula:document.getElementById('hAula').value.trim(),edificio:document.getElementById('hEdificio').value.trim(),materia:document.getElementById('hMateria').value.trim(),grupo:document.getElementById('hGrupo').value.trim()||'A',curso:document.getElementById('hCurso').value.trim()||'1',docente:document.getElementById('hDocente').value.trim()||'Sin Docente',carrera:document.getElementById('hCarrera').value.trim(),programados:Number(document.getElementById('hProgramados').value)||0};
-      if(!window.db){registrosCustom[id]=item;reconstruirDatos();cerrarModalHorario();return;}
-      try{await window.setDoc(window.doc(window.db,'horarios_custom',id),{...item,_base:!!original,updatedAt:new Date().toISOString()});cerrarModalHorario();}catch(err){alert('No se pudo guardar. Revisa las reglas de Firestore.');}
-    }
-    async function eliminarHorarioActual(){
-      const id=document.getElementById('hId').value; if(!confirm('¿Eliminar este horario personalizado?'))return;
-      if(!window.db){delete registrosCustom[id];reconstruirDatos();cerrarModalHorario();return;}
-      try{if(String(id).startsWith('new_')) await window.deleteDoc(window.doc(window.db,'horarios_custom',id)); else await window.setDoc(window.doc(window.db,'horarios_custom',id),{id,_base:true,_deleted:true,updatedAt:new Date().toISOString()});cerrarModalHorario();}catch(e){alert('No se pudo eliminar el registro.');}
-    }
-
-    function cambiarTab(tab) {
-      const panels=['panelCarreras','panelPrioridades','panelMetricas','resumenPolitico','sec-aulas','sec-cursos','sec-docentes','sec-graficas'];
-      panels.forEach(id=>document.getElementById(id)?.classList.remove('active'));
-      ['aulas','cursos','docentes','graficas'].forEach(t=>document.getElementById(`tab-${t}`)?.classList.remove('tab-active'));
-      if(tab==='inicio'){
-        ['panelCarreras','panelPrioridades','panelMetricas','resumenPolitico'].forEach(id=>document.getElementById(id)?.classList.add('active'));
-      } else if(tab==='aulas'){
-        document.getElementById('sec-aulas')?.classList.add('active');
-        document.getElementById('tab-aulas')?.classList.add('tab-active');
-      } else if(tab==='datos'){
-        document.getElementById('sec-cursos')?.classList.add('active');
-        document.getElementById('sec-docentes')?.classList.add('active');
-        document.getElementById('tab-cursos')?.classList.add('tab-active');
-      } else if(tab==='graficas'){
-        document.getElementById('sec-graficas')?.classList.add('active');
-        document.getElementById('tab-graficas')?.classList.add('tab-active');
-      } else {
-        document.getElementById(`sec-${tab}`)?.classList.add('active');
-        document.getElementById(`tab-${tab}`)?.classList.add('tab-active');
-      }
-      document.querySelectorAll('[data-mobile-tab]').forEach(b=>b.classList.toggle('text-blue-600', b.dataset.mobileTab===tab || (tab==='datos'&&b.dataset.mobileTab==='datos')));
-      window.scrollTo({top:0,behavior:'smooth'});
-      lucide.createIcons();
-    }
-    function iniciarReloj(){
-      const tick=()=>{ const d=new Date(); const el=document.getElementById('relojActual'); if(el) el.textContent=d.toLocaleTimeString('es-BO',{hour:'2-digit',minute:'2-digit',second:'2-digit'}); const rd=document.getElementById('rDia'); if(rd && rd.value==='') rd.value=diaHoyNorm(); };
-      tick(); relojTimer=setInterval(tick,1000);
-      const rd=document.getElementById('rDia'); if(rd) rd.value=diaHoyNorm()==='DOM'?'LUN':diaHoyNorm();
-      const rt=document.getElementById('rTurno'); if(rt){ const h=new Date().getHours(); rt.value=h<12?'MAÑANA':h<18?'TARDE':'NOCHE'; }
-    }
-    function actualizarEstadoConexion(firestoreListo=false){
-      onlineNow=navigator.onLine;
-      const el=document.getElementById('dbStatus'); if(!el)return;
-      el.innerHTML=onlineNow ? `<span class="offline-dot bg-emerald-500"></span> ${firestoreListo?'Firestore conectado · sincronización automática':'Con conexión · esperando Firestore'}` : `<span class="offline-dot bg-amber-500"></span> Sin internet · trabajando en este dispositivo`;
-    }
-
-    function reiniciarProgreso() {
-      if (confirm('Esto solo limpiará la vista local. Para borrar visitas guardadas en Firestore se requiere hacerlo desde el registro. ¿Continuar?')) { estadoVisitas={}; estadoConteoReal={}; actualizarTodo(); }
-    }
-  </script>
-</body>
-</html>
+<html lang="es"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#12263a">
+<title>Recorridos USFX</title>
+<link rel="preconnect" href="https://www.gstatic.com">
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;font:15px/1.35 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#eef2f5;color:#16222e;padding-bottom:calc(64px + env(safe-area-inset-bottom))}
+button,input,select{font:inherit}button{border:0;background:#e1e8ee;color:#16222e;border-radius:10px;min-height:44px;padding:0 14px;font-weight:600;cursor:pointer}
+button.p{background:#1f5eff;color:#fff}button.g{background:#dff3ea;color:#0d5c40}button.x{background:#fde4e4;color:#a11}
+input,select{width:100%;min-height:44px;border:1px solid #c9d4de;border-radius:10px;padding:0 12px;background:#fff}
+header{position:sticky;top:0;z-index:20;background:#12263a;color:#fff;padding:env(safe-area-inset-top) 10px 8px}
+.r{display:flex;align-items:center;gap:8px;height:48px}.r b{flex:1;font-size:17px}
+header button{min-height:36px;background:#244560;color:#fff;font-size:13px}
+#st{font-size:12px;color:#9fc0da}#st:before{content:"";display:inline-block;width:8px;height:8px;border-radius:9px;background:#2fbf8a;margin-right:5px}#st.w:before{background:#f0a020}
+#dias{display:flex;gap:6px;overflow-x:auto}#dias button{flex:1;min-width:48px;background:#244560;position:relative}
+#dias .on{background:#fff;color:#12263a}#dias u{position:absolute;top:5px;right:6px;width:6px;height:6px;border-radius:6px;background:#1f5eff}
+main{padding:10px;max-width:760px;margin:auto}section{display:none}section.on{display:block}
+.seg{display:flex;gap:6px;margin:8px 0;overflow-x:auto}.seg button{flex:1;white-space:nowrap;background:#fff;border:1px solid #c9d4de;font-size:13px}.seg .on{background:#12263a;color:#fff}
+.bar{height:8px;background:#d5dee6;border-radius:8px;overflow:hidden}.bar i{display:block;height:100%;background:#12805c}
+.c{background:#fff;border-radius:14px;padding:12px;margin:10px 0;border-left:6px solid var(--k);box-shadow:0 1px 2px #0002}
+.c.v{opacity:.6}.c h3{margin:6px 0 2px;font-size:19px}.c small{font-weight:400;color:#667}.c p{margin:2px 0}.s{color:#566;font-size:13px}
+.t{display:flex;gap:8px;align-items:center}.t span{margin-left:auto;font-weight:700;font-size:13px}.n{background:#12805c;color:#fff;border-radius:6px;padding:1px 7px;font-size:11px;font-style:normal}
+.a{display:flex;gap:8px;margin-top:10px}.a button{flex:1}.a .p,.a .g{flex:2}
+.k{background:#fff;border-radius:14px;padding:12px;margin:10px 0}.k h4{margin:0 0 8px}.row{margin:8px 0;font-size:13px}.row div:first-child{display:flex;justify-content:space-between;margin-bottom:3px}
+.big{font-size:44px;font-weight:800;line-height:1}.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center}.g3 b{font-size:22px;display:block}
+details{background:#fff;border-radius:12px;padding:10px 12px;margin:8px 0}summary{font-weight:700;cursor:pointer;min-height:28px}
+nav{position:fixed;bottom:0;left:0;right:0;display:grid;grid-template-columns:repeat(4,1fr);background:#fff;border-top:1px solid #c9d4de;padding-bottom:env(safe-area-inset-bottom);z-index:20}
+nav button{background:none;border-radius:0;min-height:58px;font-size:12px;color:#667}nav .on{color:#1f5eff}
+.sh{position:fixed;inset:0;background:#0008;display:none;align-items:flex-end;z-index:40}.sh.o{display:flex}
+.sh>div{background:#fff;width:100%;max-height:92vh;overflow:auto;border-radius:18px 18px 0 0;padding:14px 14px calc(14px + env(safe-area-inset-bottom));max-width:760px;margin:auto}
+.f{display:grid;grid-template-columns:1fr 1fr;gap:8px}.f .w{grid-column:1/3}.f label{font-size:12px;font-weight:700;color:#556}
+.chips{display:flex;flex-wrap:wrap;gap:6px}.chips button{min-height:38px;background:#fff;border:1px solid #c9d4de;font-size:13px}.chips .on{background:#1f5eff;color:#fff;border-color:#1f5eff}
+#toast{position:fixed;left:10px;right:10px;bottom:calc(72px + env(safe-area-inset-bottom));background:#12263a;color:#fff;border-radius:12px;padding:8px 12px;display:none;align-items:center;gap:8px;z-index:50}#toast.o{display:flex}#toast span{flex:1}#toast button{min-height:36px;background:#244560;color:#fff}
+pre{background:#12263a;color:#cfe;padding:10px;border-radius:10px;overflow:auto;font-size:12px}.e{text-align:center;color:#789;padding:30px 0}
+</style></head><body>
+<header><div class="r"><b>Recorridos</b><span id="st"></span><button id="bCar" onclick="openS('sCar')"></button><button onclick="editar()">＋ Horario</button></div><div id="dias"></div></header>
+<main>
+<section id="v-ruta" class="on"><div id="rTop"></div><input id="q" type="search" placeholder="Buscar aula, materia, docente…"><div id="lista"></div></section>
+<section id="v-avance"></section><section id="v-datos"></section><section id="v-ajustes"></section>
+</main>
+<nav><button data-t="ruta" class="on">📍<br>Ruta</button><button data-t="avance">📊<br>Avance</button><button data-t="datos">👥<br>Datos</button><button data-t="ajustes">⚙️<br>Ajustes</button></nav>
+<div id="toast"></div>
+<div class="sh" id="sCar"><div><h3>Carreras</h3><div class="seg"><button onclick="car('all')">Todas</button><button onclick="car('none')">Ninguna</button></div><div class="chips" id="carL"></div><button class="p" style="width:100%;margin-top:14px" onclick="closeS()">Listo</button></div></div>
+<div class="sh" id="sCnt"><div><h3 id="cT"></h3><p id="cB" class="s"></p><div style="display:flex;gap:8px"><button onclick="cstep(-1)">−</button><input id="cN" type="number" inputmode="numeric" min="0" style="text-align:center;font-size:22px"><button onclick="cstep(1)">＋</button></div><div class="a"><button onclick="closeS()">Cancelar</button><button class="p" onclick="csave()">Guardar</button></div></div></div>
+<div class="sh" id="sEd"><div><h3 id="eT"></h3><div class="f" id="eF"></div><datalist id="dl"></datalist><div class="a"><button onclick="closeS()">Cancelar</button><button id="eD" class="x" onclick="edel()">Eliminar</button><button class="p" onclick="esave()">Guardar</button></div></div></div>
+
+<script>
+const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const LS={g:(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}},s:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
+const DIAS=['LUN','MAR','MIE','JUE','VIE','SAB'],hoy=()=>['DOM',...DIAS][new Date().getDay()],nowM=()=>{const d=new Date();return d.getHours()*60+d.getMinutes()};
+const turnoDe=h=>h<12?'MAÑANA':h<18?'TARDE':'NOCHE',mins=h=>{const[a,b]=String(h||'0:0').split(':');return(a*60+ +b)||0},dur=(e,s)=>{const x=(mins(s)-mins(e))/60;return x>0?x:2};
+const gk=d=>`${d.carrera}|${d.curso}|${d.materia}|${d.grupo}`;
+let base=LS.g('rc_base',[]),custom={},vis=LS.g('rc_vis',{}),cnt=LS.g('rc_cnt',{}),cfg={car:null,ord:'hora',term:1,cub:1,u:0,...LS.g('rc_cfg',{})};
+let dia=hoy()==='DOM'?'LUN':hoy(),tur=turnoDe(new Date().getHours()),vista='pend',tab='ruta',lim=60,data=[],cars=[],cubiertos=new Set(),F=null,ops=[],pend=false,cid,eid,meta=null,rq,tt;
+const sel=d=>!cfg.car||cfg.car.includes(d.carrera),rows=()=>data.filter(sel),keep=()=>{LS.s('rc_vis',vis);LS.s('rc_cnt',cnt)};
+
+/* ---------- Firestore (escrituras optimistas y en cola) ---------- */
+const W=f=>F?f():ops.push(f),fail=e=>toast('No se pudo guardar: '+(e.code||e)+' (revisa reglas en Ajustes)');
+const setD=(c,id,o)=>W(()=>F.setDoc(F.doc(F.db,c,id),o,{merge:true}).catch(fail)),delD=(c,id)=>W(()=>F.deleteDoc(F.doc(F.db,c,id)).catch(fail));
+window.fbReady=f=>{F=f;ops.splice(0).forEach(o=>o());listen()};
+function listen(){
+ F.onSnapshot(F.collection(F.db,'visitas_aulas'),{includeMetadataChanges:true},s=>{
+  const v={},c={};s.forEach(x=>{const d=x.data();if(d.visitado)v[d.id]=1;if(d.conteoReal!==undefined)c[d.id]=+d.conteoReal||0});
+  pend=s.metadata.hasPendingWrites;status();
+  if(JSON.stringify([v,c])!==JSON.stringify([vis,cnt])){vis=v;cnt=c;keep();derive()}
+ },()=>{$('#st').textContent='Sin permiso en Firestore';$('#st').className='w'});
+ F.onSnapshot(F.collection(F.db,'horarios_custom'),s=>{custom={};s.forEach(x=>custom[x.id]=x.data());derive()},()=>{});
+ F.onSnapshot(F.collection(F.db,'recorridos_datos'),s=>{
+  if(s.empty&&s.metadata.fromCache)return;
+  let m=null;const ch=[];s.forEach(x=>{if(x.id==='meta')m=x.data();else ch.push(x.data())});
+  if(!m)return;meta=m;const mine=ch.filter(c=>c.batch===m.batch).sort((a,b)=>a.i-b.i);
+  if(mine.length!==m.chunks)return;base=mine.flatMap(c=>c.rows);LS.s('rc_base',base);derive();
+ },()=>{});
+ F.onSnapshot(F.doc(F.db,'config_app','global'),s=>{
+  if(s.metadata.hasPendingWrites||!s.exists())return;const d=s.data();
+  if((d.u||0)>cfg.u){cfg={...cfg,...d};LS.s('rc_cfg',cfg);render()}
+ },()=>{});
+}
+let ct;function saveCfg(){cfg.u=Date.now();LS.s('rc_cfg',cfg);clearTimeout(ct);ct=setTimeout(()=>setD('config_app','global',cfg),700);render()}
+async function subir(rows,name){
+ const n=Math.ceil(rows.length/250),b=Date.now(),old=meta?.chunks||0;
+ for(let i=0;i<n;i++)await F.setDoc(F.doc(F.db,'recorridos_datos','chunk_'+i),{i,batch:b,rows:rows.slice(i*250,i*250+250)});
+ await F.setDoc(F.doc(F.db,'recorridos_datos','meta'),{chunks:n,batch:b,count:rows.length,name,at:new Date().toISOString()});
+ for(let i=n;i<old;i++)F.deleteDoc(F.doc(F.db,'recorridos_datos','chunk_'+i));
+}
+
+/* ---------- Datos ---------- */
+function derive(){
+ const m=base.map(x=>({...x})),del=new Set();
+ for(const c of Object.values(custom)){if(c._deleted){del.add(c.id);continue}const i=m.findIndex(x=>x.id===c.id);i>=0?m[i]={...m[i],...c}:m.push({...c})}
+ data=m.filter(x=>!del.has(x.id));cars=[...new Set(data.map(d=>d.carrera).filter(Boolean))].sort();
+ cubiertos=new Set(data.filter(d=>vis[d.id]).map(gk));render();
+}
+const loadX=()=>window.XLSX?Promise.resolve():new Promise((ok,no)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';s.onload=ok;s.onerror=no;document.head.append(s)});
+function parse(buf){
+ const wb=XLSX.read(buf,{type:'array'}),js=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:''});
+ return js.map((r,i)=>{const g=(...ks)=>{for(const k of ks){const f=Object.keys(r).find(x=>x.trim().toLowerCase()===k.toLowerCase());if(f!==undefined)return String(r[f]).trim()}return ''};
+  const dr=g('Dia','Día').toUpperCase().replace('É','E').replace('Á','A'),e=g('Hora Entrada','HoraEntrada'),s=g('Hora Salida','HoraSalida');
+  return{id:'row_'+i,dia:DIAS.find(x=>dr.includes(x))||'LUN',horaEntrada:e,horaSalida:s,duracionHoras:dur(e,s),turno:turnoDe(+e.split(':')[0]||7),aula:g('Aula'),edificio:g('Edificio'),materia:g('Materia'),grupo:g('Grupo')||'A',curso:g('Curso')||'1',docente:g('Docente')||'Sin Docente',carrera:g('Carrera'),programados:parseInt(g('Nro de programados','Programados'))||0}});
+}
+async function excel(f){
+ if(!f)return;toast('Leyendo Excel…');
+ try{await loadX();const rows=parse(await f.arrayBuffer());if(!rows.length)return toast('El Excel no tiene filas');
+  base=rows;LS.s('rc_base',rows);derive();toast(rows.length+' clases cargadas. Subiendo a la nube…');
+  W(()=>subir(rows,f.name).then(()=>toast('Horarios guardados en la nube ✔')).catch(fail));
+ }catch(e){toast('No se pudo leer el Excel')}
+}
+
+/* ---------- Acciones ---------- */
+function mark(id){
+ const d=data.find(x=>x.id===id);if(!d)return;vis[id]=1;keep();
+ setD('visitas_aulas',id,{id,visitado:true,grupoClave:gk(d),carrera:d.carrera,curso:d.curso,materia:d.materia,grupo:d.grupo,aula:d.aula,docente:d.docente,conteoReal:cnt[id]??d.programados,fecha:new Date().toISOString()});
+ derive();toast('Aula '+(d.aula||'S/A')+' visitada',[['Deshacer',()=>unmark(id)],['Contar',()=>cntSheet(id)]]);
+}
+function unmark(id){delete vis[id];delete cnt[id];keep();delD('visitas_aulas',id);derive()}
+function cntSheet(id){const d=data.find(x=>x.id===id);cid=id;$('#cT').textContent='Aula '+(d.aula||'S/A')+' · '+d.materia;$('#cB').textContent='Programados: '+d.programados;$('#cN').value=cnt[id]??d.programados;openS('sCnt')}
+const cstep=n=>{$('#cN').value=Math.max(0,(+$('#cN').value||0)+n)};
+function csave(){const n=Math.max(0,+$('#cN').value||0);cnt[cid]=n;vis[cid]=1;keep();setD('visitas_aulas',cid,{id:cid,visitado:true,conteoReal:n});closeS();derive()}
+function car(m){cfg.car=m==='all'?null:[];saveCfg();carSheet()}
+function carSheet(){$('#carL').innerHTML=cars.map(c=>`<button class="${!cfg.car||cfg.car.includes(c)?'on':''}" data-c="${esc(c)}">${esc(c)}</button>`).join('')||'<span class=s>Carga el Excel primero.</span>'}
+const FLD=[['dia','Día','sel'],['horaEntrada','Entrada','time'],['horaSalida','Salida','time'],['aula','Aula'],['edificio','Edificio'],['materia','Materia','','w'],['grupo','Grupo'],['curso','Curso / Sem.'],['docente','Docente','','w'],['carrera','Carrera','','w','dl'],['programados','Estudiantes','number']];
+$('#eF').innerHTML=FLD.map(([k,l,t,w,dl])=>`<div class="${w||''}"><label>${l}</label>${t==='sel'?`<select id="f_${k}">${DIAS.map(d=>`<option>${d}</option>`).join('')}</select>`:`<input id="f_${k}" type="${t||'text'}" ${dl?'list=dl':''} ${t==='number'?'inputmode=numeric':''}>`}</div>`).join('');
+function editar(id){
+ const d=id?data.find(x=>x.id===id):{dia,horaEntrada:'08:00',horaSalida:'10:00',grupo:'A',curso:'1',programados:0,carrera:cars[0]||''};eid=id||'new_'+Date.now();
+ $('#dl').innerHTML=cars.map(c=>`<option value="${esc(c)}">`).join('');FLD.forEach(([k])=>$('#f_'+k).value=d[k]??'');
+ $('#eT').textContent=id?'Editar horario':'Nuevo horario';$('#eD').style.display=id?'':'none';openS('sEd');
+}
+function esave(){
+ const o={id:eid};FLD.forEach(([k,,t])=>o[k]=t==='number'?+$('#f_'+k).value||0:$('#f_'+k).value.trim());
+ if(!o.materia||!o.carrera)return toast('Falta materia o carrera');
+ o.duracionHoras=dur(o.horaEntrada,o.horaSalida);o.turno=turnoDe(+o.horaEntrada.split(':')[0]||7);o.docente=o.docente||'Sin Docente';
+ custom[eid]=o;setD('horarios_custom',eid,{...o,_base:base.some(x=>x.id===eid),updatedAt:new Date().toISOString()});closeS();derive();
+}
+function edel(){
+ if(!confirm('¿Eliminar este horario?'))return;
+ if(eid.startsWith('new_')){delete custom[eid];delD('horarios_custom',eid)}else{custom[eid]={id:eid,_deleted:true};setD('horarios_custom',eid,{id:eid,_base:true,_deleted:true})}
+ closeS();derive();
+}
+async function borrarVisitas(){
+ if(prompt('Esto borra TODAS las visitas guardadas (nueva semana). Escribe BORRAR para confirmar')!=='BORRAR')return;
+ const ids=Object.keys(vis);vis={};cnt={};keep();derive();
+ W(async()=>{for(let i=0;i<ids.length;i+=400){const b=F.writeBatch(F.db);ids.slice(i,i+400).forEach(id=>b.delete(F.doc(F.db,'visitas_aulas',id)));await b.commit()}toast('Visitas borradas')});
+}
+
+/* ---------- Vistas ---------- */
+const cls=n=>n>=80?['Masiva','#c62828']:n>=50?['Grande','#e65100']:n>=20?['Mediana','#1f5eff']:['Pequeña','#12805c'];
+const ahora=d=>d.dia===hoy()&&mins(d.horaEntrada)<=nowM()&&mins(d.horaSalida)>nowM();
+function card(d){
+ const v=vis[d.id],[cn,cc]=cls(d.programados);
+ return `<article class="c${v?' v':''}" style="--k:${cc}" data-id="${esc(d.id)}"><div class="t"><b>${esc(d.horaEntrada)}–${esc(d.horaSalida)}</b>${ahora(d)?'<i class="n">AHORA</i>':''}<span style="color:${cc}">${cn} · ${d.programados}</span></div>
+ <h3>Aula ${esc(d.aula||'S/A')} <small>${esc(d.edificio)}</small></h3><p>${esc(d.materia)} · Gr. ${esc(d.grupo)}</p><p class="s">${esc(d.docente)} · ${esc(d.carrera)} · Sem ${esc(d.curso)}</p>
+ <div class="a">${v?`<button class="g" data-a="cnt">✔ ${cnt[d.id]??d.programados} alumnos ✎</button><button data-a="del">Quitar</button>`:`<button class="p" data-a="ok">Marcar visitada</button><button data-a="ed">Editar</button>`}</div></article>`;
+}
+function ruta(){
+ const all=rows().filter(d=>d.dia===dia&&(tur==='TODOS'||d.turno===tur)),nv=all.filter(d=>vis[d.id]).length;
+ const est=all.reduce((s,d)=>s+d.programados,0),ev=all.filter(d=>vis[d.id]).reduce((s,d)=>s+(cnt[d.id]??d.programados),0);
+ const seg=(a,k,cur)=>`<div class="seg">${a.map(([v,l])=>`<button data-${k}="${v}" class="${v===cur?'on':''}">${l}</button>`).join('')}</div>`;
+ $('#rTop').innerHTML=`<div class="k"><div class="row"><div><b>${nv} de ${all.length} clases visitadas</b><span>${est?Math.min(100,Math.round(ev/est*100)):0}% alumnos</span></div><div class="bar"><i style="width:${all.length?nv/all.length*100:0}%"></i></div></div></div>`
+ +seg([['MAÑANA','Mañana'],['TARDE','Tarde'],['NOCHE','Noche'],['TODOS','Todos']],'u',tur)+seg([['pend','Pendientes'],['vis','Visitadas'],['all','Todas']],'v',vista)
+ +`<div class="seg"><button data-o="1">Orden: ${cfg.ord==='hora'?'por hora':'por tamaño'}</button><button data-f="term" class="${cfg.term?'on':''}">Ocultar terminadas</button><button data-f="cub" class="${cfg.cub?'on':''}">Ocultar cubiertas</button></div>`;
+ lista(all);
+}
+function lista(all){
+ all=all||rows().filter(d=>d.dia===dia&&(tur==='TODOS'||d.turno===tur));
+ const q=$('#q').value.toLowerCase();let l=all,h=0;
+ if(q)l=l.filter(d=>[d.aula,d.materia,d.docente,d.edificio,d.curso,d.grupo].join(' ').toLowerCase().includes(q));
+ if(vista==='pend')l=l.filter(d=>{if(vis[d.id])return false;if((cfg.cub&&cubiertos.has(gk(d)))||(cfg.term&&dia===hoy()&&mins(d.horaSalida)<=nowM())){h++;return false}return true});
+ else if(vista==='vis')l=l.filter(d=>vis[d.id]);
+ l.sort((a,b)=>cfg.ord==='hora'?(ahora(b)-ahora(a))||mins(a.horaEntrada)-mins(b.horaEntrada)||b.programados-a.programados:b.programados-a.programados||mins(a.horaEntrada)-mins(b.horaEntrada));
+ $('#lista').innerHTML=(l.slice(0,lim).map(card).join('')||`<div class="e">${data.length?(vista==='pend'?'Nada pendiente aquí ✔':'Sin resultados'):'Aún no hay horarios. Ve a Ajustes y carga el Excel.'}</div>`)
+ +(l.length>lim?`<button style="width:100%" data-more="1">Mostrar más (${l.length-lim})</button>`:'')+(h?`<p class="s" style="text-align:center">${h} ocultas (ya cubiertas o terminadas)</p>`:'');
+}
+const bar=(l,c,t)=>`<div class="row"><div><span>${esc(l)}</span><b>${t?Math.round(c/t*100):0}% · ${c}/${t}</b></div><div class="bar"><i style="width:${t?Math.min(100,c/t*100):0}%"></i></div></div>`;
+function docs(){
+ const m={};rows().forEach(d=>{const o=m[d.docente]||(m[d.docente]={n:d.docente,h:0,g:new Map(),m:new Set(),s:[]});o.h+=d.duracionHoras||0;o.m.add(d.materia);o.g.set(gk(d),Math.max(o.g.get(gk(d))||0,d.programados));o.s.push(d)});
+ return Object.values(m).map(o=>({...o,e:[...o.g.values()].reduce((a,b)=>a+b,0)}));
+}
+function avance(){
+ const r=rows(),g=new Map(),pc={},pk={};
+ r.forEach(d=>{const k=gk(d);let x=g.get(k);if(!x)g.set(k,x={n:0,r:0,v:0,c:d.curso,k:d.carrera});x.n=Math.max(x.n,d.programados);if(vis[d.id]){x.v=1;x.r=Math.max(x.r,cnt[d.id]??d.programados)}});
+ let T=0,C=0;g.forEach(x=>{const c=x.v?x.r:0;T+=x.n;C+=c;for(const[o,k]of[[pc,'Semestre '+x.c],[pk,x.k]]){o[k]=o[k]||[0,0];o[k][0]+=c;o[k][1]+=x.n}});
+ const A=new Set(r.filter(d=>vis[d.id]&&d.aula).map(d=>d.carrera+d.aula)).size,AT=new Set(r.filter(d=>d.aula).map(d=>d.carrera+d.aula)).size,p=T?Math.round(C/T*100):0;
+ const br=Object.entries(pc).sort((a,b)=>(b[1][1]-b[1][0])-(a[1][1]-a[1][0]))[0];
+ const top=docs().sort((a,b)=>b.e-a.e).slice(0,8);
+ $('#v-avance').innerHTML=`<div class="k"><div class="big">${p}%</div><p>de estudiantes alcanzados</p><div class="g3"><div><b>${T.toLocaleString()}</b>únicos</div><div><b>${C.toLocaleString()}</b>contactados</div><div><b>${A}/${AT}</b>aulas</div></div></div>
+ <div class="k"><h4>Qué hacer ahora</h4><p>${p<50?'Ir primero a los grupos masivos sin visita.':p<80?'Cerrar los grupos pendientes más grandes.':'Completar los últimos grupos y validar datos.'}</p>${br?`<p class="s">Mayor brecha: ${esc(br[0])} con ${(br[1][1]-br[1][0]).toLocaleString()} estudiantes pendientes.</p>`:''}</div>
+ <div class="k"><h4>Cobertura por semestre</h4>${Object.entries(pc).sort().map(([k,v])=>bar(k,...v)).join('')}</div>
+ <div class="k"><h4>Cobertura por carrera</h4>${Object.entries(pk).sort().map(([k,v])=>bar(k,...v)).join('')}</div>
+ <div class="k"><h4>Docentes con más estudiantes</h4>${top.map(d=>bar(d.n,0,0).replace(/<b>.*?<\/b>/,`<b>${d.e}</b>`).replace(/width:0%/,`width:${top[0].e?d.e/top[0].e*100:0}%`)).join('')}</div>`;
+}
+let dv='doc';
+function datosV(){
+ const seg=`<div class="seg"><button data-dv="doc" class="${dv==='doc'?'on':''}">Docentes</button><button data-dv="cur" class="${dv==='cur'?'on':''}">Cursos y grupos</button></div>`;
+ if(dv==='doc'){
+  $('#v-datos').innerHTML=seg+docs().sort((a,b)=>a.n.localeCompare(b.n)).map(o=>`<details><summary>${esc(o.n)} <small class="s">· ${o.h} h/sem · ${o.e} alumnos</small></summary><p class="s">${esc([...o.m].join(', '))} · ${o.h*4} h/mes</p>${o.s.map(c=>`<p class="s">${c.dia} ${esc(c.horaEntrada)}–${esc(c.horaSalida)} · Aula ${esc(c.aula)} · ${esc(c.materia)} Gr.${esc(c.grupo)} (${c.programados})</p>`).join('')}</details>`).join('')||'<div class="e">Sin datos</div>';
+ }else{
+  const t={};rows().forEach(d=>{((t[d.curso]??={})[d.materia]??={})[d.grupo]=d});
+  $('#v-datos').innerHTML=seg+Object.keys(t).sort().map(c=>`<details><summary>Semestre ${esc(c)}</summary>${Object.keys(t[c]).sort().map(m=>`<p><b>${esc(m)}</b></p>${Object.entries(t[c][m]).map(([g,d])=>`<p class="s">Gr. ${esc(g)} · ${esc(d.docente)} · ${d.programados} alumnos</p>`).join('')}`).join('')}</details>`).join('');
+ }
+}
+const RULES=`rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    match /{document=**} {\n      allow read, write: if true;\n    }\n  }\n}`;
+function ajustes(){
+ $('#v-ajustes').innerHTML=`<div class="k"><h4>Horarios</h4><p class="s">${data.length} clases${meta?' · Excel: '+esc(meta.name):''}</p><input type="file" id="xl" accept=".xlsx,.xls"><p class="s">Al cargarlo se guarda en la nube y todos tus dispositivos lo usan sin volver a subirlo.</p></div>
+ <div class="k"><h4>Carreras</h4><button style="width:100%" onclick="openS('sCar')">Elegir carreras (${cfg.car?cfg.car.length:cars.length}/${cars.length})</button><p class="s">La configuración se guarda sola.</p></div>
+ <details><summary>Reglas de Firestore</summary><p class="s">En Firebase → Firestore → Reglas: borra todo (Ctrl+A), pega solo esto y publica.</p><pre>${esc(RULES)}</pre><button onclick="navigator.clipboard.writeText(RULES).then(()=>toast('Copiado'))">Copiar reglas</button></details>
+ <details><summary>Zona de riesgo</summary><p class="s">Para empezar una semana nueva.</p><button class="x" onclick="borrarVisitas()">Borrar todas las visitas</button></details>`;
+ $('#xl').onchange=e=>excel(e.target.files[0]);
+}
+function status(){const e=$('#st');e.className=navigator.onLine?'':'w';e.textContent=!navigator.onLine?'Sin internet':pend?'Guardando…':F?'Sincronizado':'Conectando…'}
+function draw(){
+ $('#dias').innerHTML=DIAS.map(d=>`<button data-d="${d}" class="${d===dia?'on':''}">${{MIE:'MIÉ',SAB:'SÁB'}[d]||d}${d===hoy()?'<u></u>':''}</button>`).join('');
+ $('#bCar').textContent=`Carreras ${cfg.car?cfg.car.length:cars.length}/${cars.length}`;status();
+ ({ruta,avance,datos:datosV,ajustes})[tab]();
+}
+function render(){cancelAnimationFrame(rq);rq=requestAnimationFrame(draw)}
+function go(t){tab=t;document.querySelectorAll('section').forEach(s=>s.classList.toggle('on',s.id==='v-'+t));document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===t));scrollTo(0,0);render()}
+const openS=id=>{if(id==='sCar')carSheet();$('#'+id).classList.add('o')},closeS=()=>document.querySelectorAll('.sh').forEach(s=>s.classList.remove('o'));
+function toast(m,acts){const t=$('#toast');t.innerHTML=`<span>${esc(m)}</span>`;(Array.isArray(acts)?acts:[]).forEach(([l,f])=>{const b=document.createElement('button');b.textContent=l;b.onclick=()=>{t.classList.remove('o');f()};t.append(b)});t.classList.add('o');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('o'),acts?6000:3000)}
+
+/* ---------- Eventos (delegados: rápido en celular) ---------- */
+document.addEventListener('click',e=>{
+ const b=e.target.closest('button'),s=e.target.closest('.sh');
+ if(s&&e.target===s)return closeS();if(!b)return;const D=b.dataset;
+ if(D.t)return go(D.t);
+ if(D.d){dia=D.d;lim=60;return render()}
+ if(D.c){const cur=new Set(cfg.car||cars);cur.has(D.c)?cur.delete(D.c):cur.add(D.c);cfg.car=cur.size===cars.length?null:[...cur];saveCfg();return carSheet()}
+ if(D.dv){dv=D.dv;return datosV()}
+ if(D.more){lim+=60;return lista()}
+ if(D.o){cfg.ord=cfg.ord==='hora'?'tam':'hora';return saveCfg()}
+ if(D.f){cfg[D.f]=cfg[D.f]?0:1;return saveCfg()}
+ const c=b.closest('article');if(c&&D.a){const id=c.dataset.id;({ok:mark,del:unmark,cnt:cntSheet,ed:editar})[D.a](id)}
+});
+$('#rTop').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const D=b.dataset;
+ if(D.u){tur=D.u;lim=60;render()}if(D.v){vista=D.v;lim=60;render()}});
+$('#q').addEventListener('input',()=>{lim=60;lista()});
+addEventListener('online',status);addEventListener('offline',status);
+setInterval(()=>{if(tab==='ruta'&&!document.querySelector('.sh.o')&&document.activeElement.tagName!=='INPUT')render()},60000);
+derive();
+if(!base.length)fetch('torres.xlsx').then(r=>r.ok?r.arrayBuffer():Promise.reject()).then(async b=>{await loadX();base=parse(b);LS.s('rc_base',base);derive()}).catch(()=>{});
+</script>
+<script type="module">
+import{initializeApp}from"https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import*as M from"https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+const app=initializeApp({apiKey:"AIzaSyD91gM_l8WQMkuaMIq_6Fsr8bb0K9058I8",authDomain:"torrez-direccion.firebaseapp.com",projectId:"torrez-direccion",storageBucket:"torrez-direccion.firebasestorage.app",messagingSenderId:"458114495406",appId:"1:458114495406:web:9c4e0b7cbec270c86e0e3f"});
+let db;try{db=M.initializeFirestore(app,{localCache:M.persistentLocalCache({tabManager:M.persistentMultipleTabManager()})})}catch{db=M.getFirestore(app)}
+window.fbReady({db,doc:M.doc,setDoc:M.setDoc,deleteDoc:M.deleteDoc,onSnapshot:M.onSnapshot,collection:M.collection,writeBatch:M.writeBatch});
+</script>
+</body></html>
