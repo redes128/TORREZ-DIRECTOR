@@ -20,7 +20,7 @@
   <!-- Firebase v10 SDKs (Modular) -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, doc, setDoc, deleteDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getFirestore, doc, setDoc, deleteDoc, onSnapshot, collection, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyD91gM_l8WQMkuaMIq_6Fsr8bb0K9058I8",
@@ -34,6 +34,9 @@
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
+    enableIndexedDbPersistence(db).catch((err) => {
+      console.warn("Persistencia offline Firestore:", err.code || err);
+    });
 
     window.db = db;
     window.setDoc = setDoc;
@@ -58,6 +61,11 @@
     .priority-2{border:2px solid #ea580c!important}
     .priority-3{border:2px solid #2563eb!important}
     .safe-area{padding-bottom:90px}
+    .app-section{display:none}.app-section.active{display:block}
+    .mobile-nav{padding-bottom:env(safe-area-inset-bottom)}
+    .clock-pill{font-variant-numeric:tabular-nums}
+    .offline-dot{width:8px;height:8px;border-radius:999px;display:inline-block}
+    @media(max-width:767px){body{padding-bottom:76px}.desktop-tabs{display:none!important}.mobile-card{border-radius:18px}.mobile-nav button{min-height:58px}}
     @media(max-width:640px){.mobile-sticky{position:sticky;bottom:10px;z-index:30}.touch-btn{min-height:44px}.card-actions{grid-template-columns:1fr 1fr}}
     .tab-active { border-bottom: 3px solid #3b82f6; color: #1d4ed8; font-weight: 700; }
     .card-critica { border-left: 6px solid #ef4444; background-color: #fef2f2; }
@@ -78,7 +86,7 @@
         </div>
         <div>
           <h1 class="text-lg font-bold leading-tight">Control de Recorrido, Cobertura y Prioridades</h1>
-          <p class="text-xs text-slate-400" id="dbStatus">Conectando con base de datos...</p>
+          <div class="flex items-center gap-2 mt-1"><p class="text-xs text-slate-400" id="dbStatus">Conectando con base de datos...</p><span class="text-slate-600">·</span><span id="relojActual" class="text-xs font-bold text-blue-300 clock-pill">--:--</span></div>
         </div>
       </div>
 
@@ -97,7 +105,7 @@
   <main class="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
 
     <!-- SECCIÓN: SELECCIÓN MULTI-CARRERA -->
-    <section class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 space-y-3">
+    <section id="panelCarreras" class="app-section active bg-white p-4 rounded-xl shadow-sm border border-slate-200 space-y-3">
       <div class="flex justify-between items-center">
         <h2 class="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
           <i data-lucide="filter" class="w-4 h-4 text-blue-600"></i> Seleccionar Carrera(s)
@@ -112,18 +120,21 @@
     </section>
 
     <!-- CENTRO DE PRIORIDADES -->
-    <section class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+    <section id="panelPrioridades" class="app-section active bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
       <div class="p-4 bg-slate-900 text-white flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
         <div>
           <p class="text-[10px] uppercase tracking-[0.18em] text-blue-300 font-bold">Centro de decisiones</p>
           <h2 class="text-lg font-extrabold">15 aulas prioritarias por turno</h2>
           <p class="text-xs text-slate-300 mt-1">Prioriza grupos grandes que todavía no tienen una visita registrada. Los horarios repetidos del mismo grupo se consideran cubiertos.</p>
         </div>
-        <div class="flex gap-2">
+        <div class="grid grid-cols-2 sm:flex gap-2">
+          <select id="rDia" onchange="renderizarPrioridades()" class="bg-white text-slate-800 text-xs rounded-lg px-3 py-2 font-bold">
+            <option value="LUN">Lunes</option><option value="MAR">Martes</option><option value="MIE">Miércoles</option><option value="JUE">Jueves</option><option value="VIE">Viernes</option><option value="SAB">Sábado</option>
+          </select>
           <select id="rTurno" onchange="renderizarPrioridades()" class="bg-white text-slate-800 text-xs rounded-lg px-3 py-2 font-bold">
             <option value="MAÑANA">Mañana</option><option value="TARDE">Tarde</option><option value="NOCHE">Noche</option>
           </select>
-          <button onclick="irAPrioridades()" class="bg-blue-600 hover:bg-blue-500 px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-2"><i data-lucide="target" class="w-4 h-4"></i> Ver prioridades</button>
+          <label class="col-span-2 sm:col-span-1 bg-white/10 border border-white/20 rounded-lg px-2 py-2 text-[10px] font-bold flex items-center gap-2"><input id="rSoloLlegables" type="checkbox" checked onchange="renderizarPrioridades()"> Solo horarios vigentes</label>
         </div>
       </div>
       <div id="prioridadesResumen" class="p-4 grid grid-cols-1 sm:grid-cols-3 gap-3"></div>
@@ -131,7 +142,7 @@
     </section>
 
     <!-- NAVEGACIÓN POR PESTAÑAS -->
-    <div class="border-b border-slate-200 flex gap-6 text-sm font-medium overflow-x-auto bg-white px-4 rounded-t-xl shadow-sm">
+    <div class="desktop-tabs border-b border-slate-200 flex gap-6 text-sm font-medium overflow-x-auto bg-white px-4 rounded-t-xl shadow-sm">
       <button onclick="cambiarTab('aulas')" id="tab-aulas" class="tab-active py-3 flex items-center gap-2 whitespace-nowrap">
         <i data-lucide="map-pin" class="w-4 h-4"></i> Recorrido de Aulas
       </button>
@@ -147,7 +158,7 @@
     </div>
 
     <!-- TARJETAS DE MÉTRICAS GLOBALES -->
-    <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <section id="panelMetricas" class="app-section active grid grid-cols-2 md:grid-cols-4 gap-4">
       <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
         <p class="text-xs text-slate-500 font-medium uppercase">Estudiantes Únicos</p>
         <p class="text-2xl font-bold text-slate-900 mt-1" id="mTotalEstudiantes">0</p>
@@ -171,7 +182,7 @@
     </section>
 
     <!-- LECTURA RÁPIDA DE FORTALEZAS Y BRECHAS -->
-    <section id="resumenPolitico" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <section id="resumenPolitico" class="app-section active grid grid-cols-1 md:grid-cols-3 gap-4">
       <div class="bg-white p-4 rounded-xl shadow-sm border border-emerald-200">
         <div class="flex items-center justify-between"><p class="text-[10px] uppercase font-bold text-emerald-600">Fortaleza</p><i data-lucide="trending-up" class="w-4 h-4 text-emerald-600"></i></div>
         <p id="fortalezaTexto" class="text-sm font-bold text-slate-800 mt-2">Calculando...</p>
@@ -187,7 +198,7 @@
     </section>
 
     <!-- PESTAÑA 1: CONTROL DE AULAS -->
-    <div id="sec-aulas" class="space-y-4">
+    <div id="sec-aulas" class="app-section space-y-4">
       <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 space-y-4">
         
         <!-- Pestañas de Días -->
@@ -239,8 +250,9 @@
         </div>
 
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-blue-50 border border-blue-100 rounded-lg p-3">
-          <div class="flex items-center gap-2">
-            <input id="ocultarCubiertos" type="checkbox" checked onchange="renderizarAulas()" class="w-4 h-4">
+          <div class="flex flex-wrap items-center gap-3">
+            <label class="flex items-center gap-2"><input id="soloVigentes" type="checkbox" checked onchange="renderizarAulas()" class="w-4 h-4"><span class="text-xs font-bold text-slate-700">Ocultar clases que ya terminaron</span></label>
+            <label class="flex items-center gap-2"><input id="ocultarCubiertos" type="checkbox" checked onchange="renderizarAulas()" class="w-4 h-4">
             <label for="ocultarCubiertos" class="text-xs font-bold text-slate-700">Ocultar horarios repetidos ya cubiertos</label>
           </div>
           <div class="flex gap-2">
@@ -257,7 +269,7 @@
     </div>
 
     <!-- PESTAÑA 2: ESTRUCTURA CURSOS -> MATERIAS -> GRUPOS -->
-    <div id="sec-cursos" class="hidden space-y-4">
+    <div id="sec-cursos" class="app-section space-y-4">
       <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
         <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4 border-b pb-2">
           Mapeo de Cursos, Materias y Grupos
@@ -269,7 +281,7 @@
     </div>
 
     <!-- PESTAÑA 3: REPORTES DE DOCENTES -->
-    <div id="sec-docentes" class="hidden space-y-4">
+    <div id="sec-docentes" class="app-section space-y-4">
       <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 border-b pb-3">
           <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider">
@@ -298,7 +310,7 @@
     </div>
 
     <!-- PESTAÑA 4: GRÁFICAS -->
-    <div id="sec-graficas" class="hidden space-y-6">
+    <div id="sec-graficas" class="app-section space-y-6">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
           <h4 class="text-xs font-bold text-slate-600 uppercase mb-3">Top 10 Docentes con Más Estudiantes</h4>
@@ -324,6 +336,14 @@
     </div>
 
   </main>
+
+  <!-- NAVEGACIÓN MÓVIL -->
+  <nav class="mobile-nav md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur border-t border-slate-200 shadow-2xl grid grid-cols-4">
+    <button onclick="cambiarTab('inicio')" class="p-2 text-[10px] font-bold text-slate-600 flex flex-col items-center gap-1" data-mobile-tab="inicio"><i data-lucide="layout-dashboard" class="w-5 h-5"></i>Inicio</button>
+    <button onclick="cambiarTab('aulas')" class="p-2 text-[10px] font-bold text-slate-600 flex flex-col items-center gap-1" data-mobile-tab="aulas"><i data-lucide="route" class="w-5 h-5"></i>Ruta</button>
+    <button onclick="cambiarTab('datos')" class="p-2 text-[10px] font-bold text-slate-600 flex flex-col items-center gap-1" data-mobile-tab="datos"><i data-lucide="database" class="w-5 h-5"></i>Datos</button>
+    <button onclick="cambiarTab('graficas')" class="p-2 text-[10px] font-bold text-slate-600 flex flex-col items-center gap-1" data-mobile-tab="graficas"><i data-lucide="bar-chart-3" class="w-5 h-5"></i>Análisis</button>
+  </nav>
 
   <!-- MODAL EDICIÓN / NUEVO HORARIO -->
   <div id="modalHorario" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm hidden items-center justify-center p-3 z-[60]">
@@ -386,12 +406,19 @@
     let charts = {};
     let unsubscribeVisitas = null;
     let unsubscribeCustom = null;
+    let onlineNow = navigator.onLine;
+    let relojTimer = null;
 
     window.addEventListener('DOMContentLoaded', () => {
       lucide.createIcons();
       inicializarDias();
       cargarExcelPorDefecto();
       conectarFirebase();
+      iniciarReloj();
+      actualizarEstadoConexion();
+      window.addEventListener('online', actualizarEstadoConexion);
+      window.addEventListener('offline', actualizarEstadoConexion);
+      setInterval(() => { renderizarPrioridades(); }, 60000);
     });
 
     function inicializarDias() {
@@ -405,7 +432,7 @@
       const checkDB = setInterval(() => {
         if (window.db) {
           clearInterval(checkDB);
-          document.getElementById('dbStatus').innerText = 'Sincronizado con Firebase Firestore';
+          actualizarEstadoConexion(true);
 
           unsubscribeVisitas = window.onSnapshot(window.collection(window.db, "visitas_aulas"), (snapshot) => {
             estadoVisitas = {};
@@ -621,20 +648,41 @@
       document.getElementById('accionTexto').textContent = pct<50 ? 'Atacar primero grupos masivos y no visitados.' : pct<80 ? 'Cerrar los grupos pendientes de mayor tamaño.' : 'Completar los últimos grupos y validar datos.';
     }
 
+    function minutos(h){ if(!h) return 0; const [hh,mm]=String(h).split(':').map(Number); return (hh||0)*60+(mm||0); }
+    function ahoraMinutos(){ const d=new Date(); return d.getHours()*60+d.getMinutes(); }
+    function diaHoyNorm(){ const dias=['DOM','LUN','MAR','MIE','JUE','VIE','SAB']; return dias[new Date().getDay()]; }
+    function horarioYaTermino(d){ return d.dia===diaHoyNorm() && minutos(d.horaSalida)<=ahoraMinutos(); }
+    function horarioEnCurso(d){ return d.dia===diaHoyNorm() && minutos(d.horaEntrada)<=ahoraMinutos() && minutos(d.horaSalida)>ahoraMinutos(); }
     function renderizarPrioridades(){
-      const turno=document.getElementById('rTurno')?.value||'MAÑANA'; const cub=gruposCubiertos();
-      let list=datosRaw.filter(d=>d.turno===turno && !cub.has(claveGrupo(d)));
+      const dia=document.getElementById('rDia')?.value || diaActual;
+      const turno=document.getElementById('rTurno')?.value||'MAÑANA';
+      const solo=document.getElementById('rSoloLlegables')?.checked ?? true;
+      const cub=gruposCubiertos();
+      let list=datosRaw.filter(d=>carrerasSeleccionadas.has(d.carrera)&&d.dia===dia&&d.turno===turno&&!cub.has(claveGrupo(d)));
+      if(solo && dia===diaHoyNorm()) list=list.filter(d=>!horarioYaTermino(d));
       const vistosIds=new Set(); list=list.filter(d=>{const k=claveGrupo(d); if(vistosIds.has(k))return false; vistosIds.add(k); return true;});
-      list.sort((a,b)=>puntajePrioridad(b)-puntajePrioridad(a) || b.programados-a.programados);
+      list.sort((a,b)=>{
+        const ea=horarioEnCurso(a)?0:1, eb=horarioEnCurso(b)?0:1;
+        return ea-eb || minutos(a.horaEntrada)-minutos(b.horaEntrada) || b.programados-a.programados;
+      });
       const top=list.slice(0,15);
-      const totalEst=list.reduce((s,d)=>s+(d.programados||0),0);
-      document.getElementById('prioridadesResumen').innerHTML=`<div class="bg-slate-50 border rounded-lg p-3"><p class="text-[10px] uppercase font-bold text-slate-500">Pendientes elegibles</p><p class="text-xl font-extrabold">${list.length}</p></div><div class="bg-red-50 border border-red-100 rounded-lg p-3"><p class="text-[10px] uppercase font-bold text-red-600">Top 15 estudiantes</p><p class="text-xl font-extrabold text-red-700">${top.reduce((s,d)=>s+(d.programados||0),0).toLocaleString()}</p></div><div class="bg-blue-50 border border-blue-100 rounded-lg p-3"><p class="text-[10px] uppercase font-bold text-blue-600">Potencial del turno</p><p class="text-xl font-extrabold text-blue-700">${totalEst.toLocaleString()}</p></div>`;
+      const totalEst=list.reduce((s,d)=>s+(Number(d.programados)||0),0);
+      document.getElementById('prioridadesResumen').innerHTML=`
+        <div class="bg-slate-50 border rounded-xl p-3"><p class="text-[10px] uppercase font-bold text-slate-500">Ruta</p><p class="text-xl font-extrabold">${dia} · ${turno}</p></div>
+        <div class="bg-red-50 border border-red-100 rounded-xl p-3"><p class="text-[10px] uppercase font-bold text-red-600">15 primeras</p><p class="text-xl font-extrabold text-red-700">${top.length} clases</p></div>
+        <div class="bg-blue-50 border border-blue-100 rounded-xl p-3"><p class="text-[10px] uppercase font-bold text-blue-600">Estudiantes potenciales</p><p class="text-xl font-extrabold text-blue-700">${top.reduce((s,d)=>s+(Number(d.programados)||0),0).toLocaleString()}</p></div>`;
       const c=document.getElementById('prioridadesLista'); c.innerHTML='';
-      if(!top.length){c.innerHTML='<div class="md:col-span-3 text-center text-xs text-slate-400 py-6">No hay grupos pendientes en este turno.</div>';return;}
-      top.forEach((d,i)=>{const score=puntajePrioridad(d); const el=document.createElement('button'); el.className=`text-left p-3 rounded-xl bg-white border shadow-sm hover:shadow-md hover:border-blue-300 transition priority-${i<3?i+1:3}`; el.onclick=()=>abrirEdicionHorario(d.id); el.innerHTML=`<div class="flex justify-between gap-2"><span class="text-[10px] font-extrabold text-slate-400">#${i+1}</span><span class="text-[10px] font-extrabold ${score>=75?'text-red-600':score>=50?'text-amber-600':'text-blue-600'}">${prioridadLabel(score)}</span></div><p class="font-extrabold text-sm text-slate-900 mt-1">${d.aula||'S/A'} · ${d.programados} est.</p><p class="text-xs font-bold text-slate-700 truncate">${d.materia}</p><p class="text-[10px] text-slate-500">${d.curso} · ${d.grupo} · ${d.dia} ${d.horaEntrada}-${d.horaSalida}</p><p class="text-[10px] text-slate-400 mt-1 truncate">${d.docente}</p>`; c.appendChild(el);});
-      lucide.createIcons();
+      if(!top.length){c.innerHTML='<div class="md:col-span-3 text-center text-xs text-slate-400 py-8">No quedan clases prioritarias para este día y turno con los filtros actuales.</div>';return;}
+      top.forEach((d,i)=>{
+        const score=puntajePrioridad(d), nivel=prioridadLabel(score), enCurso=horarioEnCurso(d);
+        const el=document.createElement('article');
+        el.className=`text-left p-3 rounded-xl bg-white border shadow-sm priority-${i<3?i+1:3}`;
+        el.innerHTML=`<div class="flex justify-between gap-2"><span class="text-[10px] font-extrabold text-slate-400">#${i+1}</span><span class="text-[10px] font-extrabold ${enCurso?'text-emerald-600':score>=75?'text-red-600':score>=50?'text-amber-600':'text-blue-600'}">${enCurso?'AHORA':nivel}</span></div><p class="font-extrabold text-base text-slate-900 mt-1">${d.aula||'S/A'} · ${d.programados} est.</p><p class="text-xs font-bold text-slate-700 truncate">${d.materia} · Grupo ${d.grupo}</p><p class="text-[10px] text-slate-500">${d.horaEntrada}-${d.horaSalida} · Curso ${d.curso}</p><p class="text-[10px] text-slate-400 mt-1 truncate">${d.docente}</p><div class="grid grid-cols-2 gap-2 mt-2"><button onclick="seleccionarYMarcar('${d.id}')" class="touch-btn bg-emerald-600 text-white rounded-lg py-2 text-[11px] font-extrabold">Asistí / marcar</button><button onclick="abrirEdicionHorario('${d.id}')" class="touch-btn bg-slate-100 text-slate-700 rounded-lg py-2 text-[11px] font-extrabold">Editar</button></div>`;
+        c.appendChild(el);
+      }); lucide.createIcons();
     }
-    function irAPrioridades(){ document.getElementById('prioridadesLista')?.scrollIntoView({behavior:'smooth',block:'start'}); }
+    function seleccionarYMarcar(id){ diaActual=(datosRaw.find(d=>d.id===id)||{}).dia||diaActual; cambiarTab('aulas'); setTimeout(()=>toggleVisita(id),50); }
+    function irAPrioridades(){ cambiarTab('inicio'); }
     function seleccionarSoloPendientes(){ document.getElementById('fEstado').value='PENDIENTE'; renderizarAulas(); }
 
     function renderizarTabsDias() {
@@ -658,7 +706,7 @@
       const container=document.getElementById('gridAulas'); container.innerHTML='';
       const tSel=document.getElementById('fTurno').value, cSel=document.getElementById('fCapacidad').value;
       const eSel=document.getElementById('fEstado').value, bSel=document.getElementById('fBusqueda').value.toLowerCase();
-      const ocultar=document.getElementById('ocultarCubiertos')?.checked ?? true;
+      const ocultar=document.getElementById('ocultarCubiertos')?.checked ?? true; const soloVigentes=document.getElementById('soloVigentes')?.checked ?? true;
       const cub=gruposCubiertos();
       let list=datosRaw.filter(d=>carrerasSeleccionadas.has(d.carrera)&&d.dia===diaActual);
       if(tSel!=='TODOS') list=list.filter(d=>d.turno===tSel);
@@ -666,7 +714,7 @@
       if(eSel==='VISITADO') list=list.filter(d=>estadoVisitas[d.id]);
       if(cSel!=='TODOS') list=list.filter(d=>cSel==='CRITICA'?d.programados>=80:cSel==='GRANDE'?d.programados>=50&&d.programados<80:cSel==='MEDIANA'?d.programados>=20&&d.programados<50:d.programados<20);
       if(bSel) list=list.filter(d=>[d.aula,d.materia,d.docente,d.edificio,d.curso,d.grupo].some(v=>String(v||'').toLowerCase().includes(bSel)));
-      if(ocultar && eSel!=='VISITADO') list=list.filter(d=>!cub.has(claveGrupo(d)));
+      if(ocultar && eSel!=='VISITADO') list=list.filter(d=>!cub.has(claveGrupo(d))); if(soloVigentes && diaActual===diaHoyNorm()) list=list.filter(d=>!horarioYaTermino(d));
       list.sort((a,b)=>b.programados-a.programados || a.horaEntrada.localeCompare(b.horaEntrada));
       if(!list.length){container.innerHTML='<div class="col-span-full py-12 text-center text-slate-400"><i data-lucide="check-circle-2" class="w-8 h-8 mx-auto mb-2 text-emerald-400"></i><p class="text-sm font-bold">No hay visitas pendientes con estos filtros.</p><p class="text-xs mt-1">Prueba mostrando los horarios cubiertos o cambia el turno.</p></div>';lucide.createIcons();return;}
       list.forEach(item=>{
@@ -911,14 +959,18 @@
       }
 
     async function toggleVisita(id) {
-      const nuevoEstado=!estadoVisitas[id];
-      if(!window.db){estadoVisitas[id]=nuevoEstado; actualizarTodo(); return;}
-      try{
-        const item=datosRaw.find(d=>d.id===id); if(!item)return;
-        if(nuevoEstado){
-          await window.setDoc(window.doc(window.db,'visitas_aulas',id),{id,visitado:true,grupoClave:claveGrupo(item),aula:item.aula,materia:item.materia,curso:item.curso,carrera:item.carrera,turno:item.turno,conteoReal:estadoConteoReal[id]!==undefined?estadoConteoReal[id]:item.programados,fecha:new Date().toISOString()});
-        }else await window.deleteDoc(window.doc(window.db,'visitas_aulas',id));
-      }catch(e){alert('No se pudo guardar la visita. Revisa la conexión o las reglas de Firestore.');}
+      const nuevoEstado=!estadoVisitas[id]; const item=datosRaw.find(d=>d.id===id); if(!item)return;
+      estadoVisitas[id]=nuevoEstado;
+      if(window.db){
+        try{
+          if(nuevoEstado){
+            await window.setDoc(window.doc(window.db,'visitas_aulas',id),{id,visitado:true,grupoClave:claveGrupo(item),carrera:item.carrera,curso:item.curso,materia:item.materia,grupo:item.grupo,aula:item.aula,docente:item.docente,conteoReal:estadoConteoReal[id]!==undefined?estadoConteoReal[id]:item.programados,fecha:new Date().toISOString()},{merge:true});
+          }else{
+            await window.deleteDoc(window.doc(window.db,'visitas_aulas',id)); delete estadoConteoReal[id];
+          }
+        }catch(err){ console.error(err); alert('La visita quedó guardada localmente. Se sincronizará cuando vuelva el internet.'); }
+      }
+      actualizarTodo();
     }
 
     async function modificarConteo(id,delta){
@@ -952,13 +1004,39 @@
     }
 
     function cambiarTab(tab) {
-      ['aulas', 'cursos', 'docentes', 'graficas'].forEach(t => {
-        document.getElementById(`sec-${t}`).classList.add('hidden');
-        document.getElementById(`tab-${t}`).className = 'py-3 text-slate-500 hover:text-slate-800 flex items-center gap-2 whitespace-nowrap';
-      });
-
-      document.getElementById(`sec-${tab}`).classList.remove('hidden');
-      document.getElementById(`tab-${tab}`).className = 'tab-active py-3 flex items-center gap-2 whitespace-nowrap';
+      const panels=['panelCarreras','panelPrioridades','panelMetricas','resumenPolitico','sec-aulas','sec-cursos','sec-docentes','sec-graficas'];
+      panels.forEach(id=>document.getElementById(id)?.classList.remove('active'));
+      ['aulas','cursos','docentes','graficas'].forEach(t=>document.getElementById(`tab-${t}`)?.classList.remove('tab-active'));
+      if(tab==='inicio'){
+        ['panelCarreras','panelPrioridades','panelMetricas','resumenPolitico'].forEach(id=>document.getElementById(id)?.classList.add('active'));
+      } else if(tab==='aulas'){
+        document.getElementById('sec-aulas')?.classList.add('active');
+        document.getElementById('tab-aulas')?.classList.add('tab-active');
+      } else if(tab==='datos'){
+        document.getElementById('sec-cursos')?.classList.add('active');
+        document.getElementById('sec-docentes')?.classList.add('active');
+        document.getElementById('tab-cursos')?.classList.add('tab-active');
+      } else if(tab==='graficas'){
+        document.getElementById('sec-graficas')?.classList.add('active');
+        document.getElementById('tab-graficas')?.classList.add('tab-active');
+      } else {
+        document.getElementById(`sec-${tab}`)?.classList.add('active');
+        document.getElementById(`tab-${tab}`)?.classList.add('tab-active');
+      }
+      document.querySelectorAll('[data-mobile-tab]').forEach(b=>b.classList.toggle('text-blue-600', b.dataset.mobileTab===tab || (tab==='datos'&&b.dataset.mobileTab==='datos')));
+      window.scrollTo({top:0,behavior:'smooth'});
+      lucide.createIcons();
+    }
+    function iniciarReloj(){
+      const tick=()=>{ const d=new Date(); const el=document.getElementById('relojActual'); if(el) el.textContent=d.toLocaleTimeString('es-BO',{hour:'2-digit',minute:'2-digit',second:'2-digit'}); const rd=document.getElementById('rDia'); if(rd && rd.value==='') rd.value=diaHoyNorm(); };
+      tick(); relojTimer=setInterval(tick,1000);
+      const rd=document.getElementById('rDia'); if(rd) rd.value=diaHoyNorm()==='DOM'?'LUN':diaHoyNorm();
+      const rt=document.getElementById('rTurno'); if(rt){ const h=new Date().getHours(); rt.value=h<12?'MAÑANA':h<18?'TARDE':'NOCHE'; }
+    }
+    function actualizarEstadoConexion(firestoreListo=false){
+      onlineNow=navigator.onLine;
+      const el=document.getElementById('dbStatus'); if(!el)return;
+      el.innerHTML=onlineNow ? `<span class="offline-dot bg-emerald-500"></span> ${firestoreListo?'Firestore conectado · sincronización automática':'Con conexión · esperando Firestore'}` : `<span class="offline-dot bg-amber-500"></span> Sin internet · trabajando en este dispositivo`;
     }
 
     function reiniciarProgreso() {
