@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sistema de Gestión Académica y Control de Aulas</title>
+  <title>Centro de Control de Recorridos y Prioridades</title>
   
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -41,44 +41,30 @@
     window.doc = doc;
     window.collection = collection;
     window.onSnapshot = onSnapshot;
+    window.getDocs = null;
   </script>
 
   <style>
-    :root { --brand:#2563eb; --brand-dark:#172554; --ink:#0f172a; --muted:#64748b; --surface:#ffffff; --bg:#f1f5f9; }
-    * { -webkit-tap-highlight-color: transparent; }
-    html { scroll-behavior:smooth; }
-    body { padding-bottom: 0; }
-    button, input, select { min-height: 42px; }
-    .tab-active { border-bottom: 3px solid var(--brand); color: #1d4ed8; font-weight: 800; }
-    .tab-mobile-active { color:#2563eb !important; }
-    .card-critica { border-left: 5px solid #dc2626; background-color: #fef2f2; }
-    .card-grande { border-left: 5px solid #ea580c; background-color: #fff7ed; }
-    .card-mediana { border-left: 5px solid #2563eb; background-color: #eff6ff; }
-    .card-pequena { border-left: 5px solid #059669; background-color: #ecfdf5; }
-    .card-visited { opacity: .68; background-color: #f8fafc !important; border-left-color: #94a3b8 !important; }
-    .glass { background:rgba(255,255,255,.92); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); }
-    .metric-card { transition:transform .18s ease, box-shadow .18s ease; }
-    .metric-card:hover { transform:translateY(-2px); box-shadow:0 12px 28px rgba(15,23,42,.08); }
-    .progress-track { height:8px; border-radius:999px; background:#e2e8f0; overflow:hidden; }
-    .progress-fill { height:100%; border-radius:999px; transition:width .35s ease; }
-    .priority-card { background:linear-gradient(135deg,#172554,#1e40af); color:white; }
-    .safe-scroll { scrollbar-width:thin; }
-    .table-wrap { -webkit-overflow-scrolling:touch; }
-    @media (max-width: 767px) {
-      body { padding-bottom:76px; }
-      header { padding-top:env(safe-area-inset-top); }
-      main { padding:12px !important; }
-      .desktop-tabs { display:none !important; }
-      .mobile-bottom-nav { display:flex !important; }
-      .mobile-full { width:100%; }
-      .metric-card { padding:13px !important; }
-      .metric-card .metric-value { font-size:1.45rem; }
-      .chart-box { min-height:290px; }
-      .sticky-mobile { position:sticky; top:58px; z-index:30; }
-    }
-    @media (min-width: 768px) {
-      .mobile-bottom-nav { display:none !important; }
-    }
+
+    body{background:#f4f7fb;}
+    .tab-active { border-bottom: 3px solid #2563eb; color: #1d4ed8; font-weight: 800; }
+    .card-critica { border-left: 6px solid #dc2626; background-color: #fff7f7; }
+    .card-grande { border-left: 6px solid #ea580c; background-color: #fffaf5; }
+    .card-mediana { border-left: 6px solid #2563eb; background-color: #f7faff; }
+    .card-pequena { border-left: 6px solid #059669; background-color: #f5fffb; }
+    .card-visited { opacity: 0.62; background:#eef2f7!important; border-left-color:#94a3b8!important; }
+    .card-covered{opacity:.48;filter:saturate(.65);background:#f1f5f9!important;border-left-color:#94a3b8!important}
+    .priority-1{border:2px solid #dc2626!important}
+    .priority-2{border:2px solid #ea580c!important}
+    .priority-3{border:2px solid #2563eb!important}
+    .safe-area{padding-bottom:90px}
+    @media(max-width:640px){.mobile-sticky{position:sticky;bottom:10px;z-index:30}.touch-btn{min-height:44px}.card-actions{grid-template-columns:1fr 1fr}}
+    .tab-active { border-bottom: 3px solid #3b82f6; color: #1d4ed8; font-weight: 700; }
+    .card-critica { border-left: 6px solid #ef4444; background-color: #fef2f2; }
+    .card-grande { border-left: 6px solid #f97316; background-color: #fff7ed; }
+    .card-mediana { border-left: 6px solid #3b82f6; background-color: #eff6ff; }
+    .card-pequena { border-left: 6px solid #10b981; background-color: #ecfdf5; }
+    .card-visited { opacity: 0.6; background-color: #f3f4f6 !important; border-left-color: #9ca3af !important; }
   </style>
 </head>
 <body class="bg-slate-100 text-slate-800 font-sans antialiased min-h-screen">
@@ -91,7 +77,7 @@
           <i data-lucide="building-2" class="w-6 h-6 text-white"></i>
         </div>
         <div>
-          <h1 class="text-lg font-bold leading-tight">Control Académico y Recorrido de Aulas</h1>
+          <h1 class="text-lg font-bold leading-tight">Control de Recorrido, Cobertura y Prioridades</h1>
           <p class="text-xs text-slate-400" id="dbStatus">Conectando con base de datos...</p>
         </div>
       </div>
@@ -125,141 +111,83 @@
       </div>
     </section>
 
-    <!-- NAVEGACIÓN PRINCIPAL -->
-    <div class="desktop-tabs border-b border-slate-200 flex gap-2 text-sm font-medium overflow-x-auto bg-white px-3 rounded-xl shadow-sm sticky top-[76px] z-30">
-      <button onclick="cambiarTab('dashboard')" id="tab-dashboard" class="tab-active py-3 px-3 flex items-center gap-2 whitespace-nowrap">
-        <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Resumen
+    <!-- CENTRO DE PRIORIDADES -->
+    <section class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+      <div class="p-4 bg-slate-900 text-white flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+        <div>
+          <p class="text-[10px] uppercase tracking-[0.18em] text-blue-300 font-bold">Centro de decisiones</p>
+          <h2 class="text-lg font-extrabold">15 aulas prioritarias por turno</h2>
+          <p class="text-xs text-slate-300 mt-1">Prioriza grupos grandes que todavía no tienen una visita registrada. Los horarios repetidos del mismo grupo se consideran cubiertos.</p>
+        </div>
+        <div class="flex gap-2">
+          <select id="rTurno" onchange="renderizarPrioridades()" class="bg-white text-slate-800 text-xs rounded-lg px-3 py-2 font-bold">
+            <option value="MAÑANA">Mañana</option><option value="TARDE">Tarde</option><option value="NOCHE">Noche</option>
+          </select>
+          <button onclick="irAPrioridades()" class="bg-blue-600 hover:bg-blue-500 px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-2"><i data-lucide="target" class="w-4 h-4"></i> Ver prioridades</button>
+        </div>
+      </div>
+      <div id="prioridadesResumen" class="p-4 grid grid-cols-1 sm:grid-cols-3 gap-3"></div>
+      <div id="prioridadesLista" class="px-4 pb-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+    </section>
+
+    <!-- NAVEGACIÓN POR PESTAÑAS -->
+    <div class="border-b border-slate-200 flex gap-6 text-sm font-medium overflow-x-auto bg-white px-4 rounded-t-xl shadow-sm">
+      <button onclick="cambiarTab('aulas')" id="tab-aulas" class="tab-active py-3 flex items-center gap-2 whitespace-nowrap">
+        <i data-lucide="map-pin" class="w-4 h-4"></i> Recorrido de Aulas
       </button>
-      <button onclick="cambiarTab('aulas')" id="tab-aulas" class="py-3 px-3 text-slate-500 hover:text-slate-800 flex items-center gap-2 whitespace-nowrap">
-        <i data-lucide="map-pin" class="w-4 h-4"></i> Aulas
+      <button onclick="cambiarTab('cursos')" id="tab-cursos" class="py-3 text-slate-500 hover:text-slate-800 flex items-center gap-2 whitespace-nowrap">
+        <i data-lucide="layers" class="w-4 h-4"></i> Cursos, Materias y Grupos
       </button>
-      <button onclick="cambiarTab('semestres')" id="tab-semestres" class="py-3 px-3 text-slate-500 hover:text-slate-800 flex items-center gap-2 whitespace-nowrap">
-        <i data-lucide="graduation-cap" class="w-4 h-4"></i> Semestres
+      <button onclick="cambiarTab('docentes')" id="tab-docentes" class="py-3 text-slate-500 hover:text-slate-800 flex items-center gap-2 whitespace-nowrap">
+        <i data-lucide="users" class="w-4 h-4"></i> Reporte de Docentes
       </button>
-      <button onclick="cambiarTab('cursos')" id="tab-cursos" class="py-3 px-3 text-slate-500 hover:text-slate-800 flex items-center gap-2 whitespace-nowrap">
-        <i data-lucide="layers" class="w-4 h-4"></i> Cursos
-      </button>
-      <button onclick="cambiarTab('docentes')" id="tab-docentes" class="py-3 px-3 text-slate-500 hover:text-slate-800 flex items-center gap-2 whitespace-nowrap">
-        <i data-lucide="users" class="w-4 h-4"></i> Docentes
-      </button>
-      <button onclick="cambiarTab('graficas')" id="tab-graficas" class="py-3 px-3 text-slate-500 hover:text-slate-800 flex items-center gap-2 whitespace-nowrap">
-        <i data-lucide="chart-no-axes-combined" class="w-4 h-4"></i> Analítica
+      <button onclick="cambiarTab('graficas')" id="tab-graficas" class="py-3 text-slate-500 hover:text-slate-800 flex items-center gap-2 whitespace-nowrap">
+        <i data-lucide="bar-chart-3" class="w-4 h-4"></i> Analítica y Gráficas
       </button>
     </div>
 
-    <!-- NAVEGACIÓN MÓVIL -->
-    <nav class="mobile-bottom-nav hidden fixed bottom-0 inset-x-0 z-50 bg-white/95 backdrop-blur border-t border-slate-200 shadow-[0_-8px_25px_rgba(15,23,42,.10)] px-2 pt-2 pb-[calc(8px+env(safe-area-inset-bottom))] justify-around">
-      <button onclick="cambiarTab('dashboard')" data-mobile-tab="dashboard" class="flex-1 flex flex-col items-center gap-1 text-slate-500 text-[10px] font-bold">
-        <i data-lucide="layout-dashboard" class="w-5 h-5"></i><span>Inicio</span>
-      </button>
-      <button onclick="cambiarTab('aulas')" data-mobile-tab="aulas" class="flex-1 flex flex-col items-center gap-1 text-slate-500 text-[10px] font-bold">
-        <i data-lucide="map-pin" class="w-5 h-5"></i><span>Aulas</span>
-      </button>
-      <button onclick="cambiarTab('semestres')" data-mobile-tab="semestres" class="flex-1 flex flex-col items-center gap-1 text-slate-500 text-[10px] font-bold">
-        <i data-lucide="graduation-cap" class="w-5 h-5"></i><span>Semestres</span>
-      </button>
-      <button onclick="cambiarTab('graficas')" data-mobile-tab="graficas" class="flex-1 flex flex-col items-center gap-1 text-slate-500 text-[10px] font-bold">
-        <i data-lucide="bar-chart-3" class="w-5 h-5"></i><span>Datos</span>
-      </button>
-    </nav>
-
     <!-- TARJETAS DE MÉTRICAS GLOBALES -->
-    <section class="grid grid-cols-2 md:grid-cols-4 gap-3">
-      <div class="metric-card bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+    <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
         <p class="text-xs text-slate-500 font-medium uppercase">Estudiantes Únicos</p>
         <p class="text-2xl font-bold text-slate-900 mt-1" id="mTotalEstudiantes">0</p>
         <p class="text-[10px] text-slate-400 mt-0.5">Sin duplicar por sesiones de clase</p>
       </div>
-      <div class="metric-card bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
         <p class="text-xs text-slate-500 font-medium uppercase">Estudiantes Contactados</p>
         <p class="text-2xl font-bold text-emerald-600 mt-1" id="mTotalContactados">0</p>
         <p class="text-[10px] text-emerald-600 font-medium mt-0.5" id="mPorcentajeContactados">0% alcanzado</p>
       </div>
-      <div class="metric-card bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
         <p class="text-xs text-slate-500 font-medium uppercase">Total Clases Programadas</p>
         <p class="text-2xl font-bold text-slate-900 mt-1" id="mTotalAulas">0</p>
         <p class="text-[10px] text-slate-400 mt-0.5">En toda la semana</p>
       </div>
-      <div class="metric-card bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
         <p class="text-xs text-slate-500 font-medium uppercase">Aulas Visitadas</p>
         <p class="text-2xl font-bold text-blue-600 mt-1" id="mAulasVisitadas">0</p>
         <p class="text-[10px] text-blue-600 font-medium mt-0.5" id="mPorcentajeAulas">0% completado</p>
       </div>
     </section>
 
-    <!-- DASHBOARD EJECUTIVO -->
-    <section id="sec-dashboard" class="space-y-5">
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div class="priority-card rounded-2xl p-5 shadow-lg lg:col-span-2">
-          <div class="flex items-start justify-between gap-3">
-            <div>
-              <p class="text-[10px] uppercase tracking-[.18em] text-blue-200 font-bold">Prioridad operativa</p>
-              <h2 class="text-xl font-extrabold mt-1" id="dashTituloPrioridad">Calculando ruta...</h2>
-              <p class="text-sm text-blue-100 mt-1" id="dashDetallePrioridad">Selecciona tus carreras para obtener la siguiente acción.</p>
-            </div>
-            <div class="p-2.5 rounded-xl bg-white/10"><i data-lucide="navigation" class="w-6 h-6"></i></div>
-          </div>
-          <div class="mt-5 flex flex-wrap gap-2">
-            <button onclick="cambiarTab('aulas')" class="bg-white text-blue-800 px-4 py-2 rounded-xl text-xs font-extrabold flex items-center gap-2 shadow">
-              <i data-lucide="play" class="w-4 h-4"></i> Ir al recorrido
-            </button>
-            <button onclick="cambiarTab('semestres')" class="bg-blue-400/20 border border-white/20 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2">
-              <i data-lucide="graduation-cap" class="w-4 h-4"></i> Ver avance
-            </button>
-          </div>
-        </div>
-
-        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-          <div class="flex justify-between items-center">
-            <div>
-              <p class="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Cobertura general</p>
-              <p class="text-3xl font-black text-slate-900 mt-1" id="dashCobertura">0%</p>
-            </div>
-            <div class="w-14 h-14 rounded-full bg-blue-50 flex items-center justify-center">
-              <i data-lucide="target" class="w-7 h-7 text-blue-600"></i>
-            </div>
-          </div>
-          <div class="progress-track mt-4"><div id="dashCoberturaBar" class="progress-fill bg-blue-600" style="width:0%"></div></div>
-          <p class="text-[11px] text-slate-500 mt-2" id="dashCoberturaTexto">0 de 0 aulas registradas</p>
-        </div>
+    <!-- LECTURA RÁPIDA DE FORTALEZAS Y BRECHAS -->
+    <section id="resumenPolitico" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="bg-white p-4 rounded-xl shadow-sm border border-emerald-200">
+        <div class="flex items-center justify-between"><p class="text-[10px] uppercase font-bold text-emerald-600">Fortaleza</p><i data-lucide="trending-up" class="w-4 h-4 text-emerald-600"></i></div>
+        <p id="fortalezaTexto" class="text-sm font-bold text-slate-800 mt-2">Calculando...</p>
       </div>
-
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div class="metric-card bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
-          <div class="flex justify-between"><i data-lucide="users-round" class="w-5 h-5 text-blue-600"></i><span class="text-[9px] font-bold text-slate-400">ALCANCE</span></div>
-          <p class="text-2xl font-black mt-2" id="dashEstudiantes">0</p><p class="text-[10px] text-slate-500">estudiantes objetivo</p>
-        </div>
-        <div class="metric-card bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
-          <div class="flex justify-between"><i data-lucide="user-check" class="w-5 h-5 text-emerald-600"></i><span class="text-[9px] font-bold text-slate-400">CONTACTO</span></div>
-          <p class="text-2xl font-black text-emerald-600 mt-2" id="dashContactados">0</p><p class="text-[10px] text-slate-500" id="dashContactoPct">0% cobertura</p>
-        </div>
-        <div class="metric-card bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
-          <div class="flex justify-between"><i data-lucide="check-circle-2" class="w-5 h-5 text-indigo-600"></i><span class="text-[9px] font-bold text-slate-400">VISITADAS</span></div>
-          <p class="text-2xl font-black text-indigo-600 mt-2" id="dashVisitadas">0</p><p class="text-[10px] text-slate-500" id="dashPendientes">0 pendientes</p>
-        </div>
-        <div class="metric-card bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
-          <div class="flex justify-between"><i data-lucide="flag" class="w-5 h-5 text-orange-600"></i><span class="text-[9px] font-bold text-slate-400">SEMESTRE</span></div>
-          <p class="text-xl font-black text-orange-600 mt-2" id="dashSemestreTop">—</p><p class="text-[10px] text-slate-500" id="dashSemestreTexto">Sin datos</p>
-        </div>
+      <div class="bg-white p-4 rounded-xl shadow-sm border border-amber-200">
+        <div class="flex items-center justify-between"><p class="text-[10px] uppercase font-bold text-amber-600">Brecha principal</p><i data-lucide="alert-triangle" class="w-4 h-4 text-amber-600"></i></div>
+        <p id="brechaTexto" class="text-sm font-bold text-slate-800 mt-2">Calculando...</p>
       </div>
-
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
-          <div class="flex justify-between items-center mb-3">
-            <div><h3 class="font-extrabold text-slate-900">Avance por semestre</h3><p class="text-[10px] text-slate-500">Qué tan cerca está cada semestre de completarse.</p></div>
-            <button onclick="cambiarTab('semestres')" class="text-[10px] font-bold text-blue-600">Detalle</button>
-          </div>
-          <div id="dashSemestres" class="space-y-3"></div>
-        </div>
-        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 chart-box">
-          <div class="flex justify-between items-center mb-2"><h3 class="font-extrabold text-slate-900">Rendimiento del recorrido</h3><span class="text-[10px] text-slate-400">Aulas</span></div>
-          <canvas id="chartDashboard"></canvas>
-        </div>
+      <div class="bg-white p-4 rounded-xl shadow-sm border border-blue-200">
+        <div class="flex items-center justify-between"><p class="text-[10px] uppercase font-bold text-blue-600">Próxima acción</p><i data-lucide="route" class="w-4 h-4 text-blue-600"></i></div>
+        <p id="accionTexto" class="text-sm font-bold text-slate-800 mt-2">Calculando...</p>
       </div>
     </section>
 
-    <!-- PESTAÑA: CONTROL DE AULAS -->
-    <div id="sec-aulas" class="hidden space-y-4">
+    <!-- PESTAÑA 1: CONTROL DE AULAS -->
+    <div id="sec-aulas" class="space-y-4">
       <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 space-y-4">
         
         <!-- Pestañas de Días -->
@@ -310,6 +238,17 @@
           </div>
         </div>
 
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-blue-50 border border-blue-100 rounded-lg p-3">
+          <div class="flex items-center gap-2">
+            <input id="ocultarCubiertos" type="checkbox" checked onchange="renderizarAulas()" class="w-4 h-4">
+            <label for="ocultarCubiertos" class="text-xs font-bold text-slate-700">Ocultar horarios repetidos ya cubiertos</label>
+          </div>
+          <div class="flex gap-2">
+            <button onclick="abrirModalNuevoHorario()" class="touch-btn bg-slate-900 text-white px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-2"><i data-lucide="plus" class="w-4 h-4"></i> Nuevo horario</button>
+            <button onclick="seleccionarSoloPendientes()" class="touch-btn bg-white border border-slate-300 text-slate-700 px-3 py-2 rounded-lg text-xs font-bold">Solo pendientes</button>
+          </div>
+        </div>
+
         <!-- Grid de Aulas -->
         <div id="gridAulas" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <!-- Tarjetas renderizadas dinámicamente -->
@@ -317,36 +256,9 @@
       </div>
     </div>
 
-    <!-- PESTAÑA: CONTROL POR SEMESTRE -->
-    <section id="sec-semestres" class="hidden space-y-5">
-      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 md:p-5">
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-5">
-          <div>
-            <p class="text-[10px] uppercase tracking-wider text-blue-600 font-bold">Control académico de campaña</p>
-            <h2 class="text-xl font-black text-slate-900">Avance de aulas por semestre</h2>
-            <p class="text-xs text-slate-500 mt-1">Identifica el semestre más avanzado y dónde todavía existe mayor trabajo pendiente.</p>
-          </div>
-          <div id="semestreEstadoGlobal" class="px-3 py-2 rounded-xl bg-slate-100 text-xs font-bold text-slate-700">Calculando...</div>
-        </div>
-        <div id="semestresContainer" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"></div>
-      </div>
-
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 chart-box">
-          <h3 class="font-extrabold text-slate-900">Porcentaje de avance por semestre</h3>
-          <p class="text-[10px] text-slate-500 mb-2">Porcentaje de sesiones/aulas visitadas.</p>
-          <canvas id="chartSemestres"></canvas>
-        </div>
-        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
-          <h3 class="font-extrabold text-slate-900 mb-3">Lectura ejecutiva</h3>
-          <div id="semestreLectura" class="space-y-3"></div>
-        </div>
-      </div>
-    </section>
-
-    <!-- PESTAÑA: ESTRUCTURA CURSOS -> MATERIAS -> GRUPOS -->
+    <!-- PESTAÑA 2: ESTRUCTURA CURSOS -> MATERIAS -> GRUPOS -->
     <div id="sec-cursos" class="hidden space-y-4">
-      <div class="metric-card bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
         <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4 border-b pb-2">
           Mapeo de Cursos, Materias y Grupos
         </h3>
@@ -358,7 +270,7 @@
 
     <!-- PESTAÑA 3: REPORTES DE DOCENTES -->
     <div id="sec-docentes" class="hidden space-y-4">
-      <div class="metric-card bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 border-b pb-3">
           <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider">
             Listado de Docentes y Carga Horaria
@@ -387,27 +299,61 @@
 
     <!-- PESTAÑA 4: GRÁFICAS -->
     <div id="sec-graficas" class="hidden space-y-6">
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div class="metric-card bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
           <h4 class="text-xs font-bold text-slate-600 uppercase mb-3">Top 10 Docentes con Más Estudiantes</h4>
           <canvas id="chartDocentesEstudiantes" class="max-h-64"></canvas>
         </div>
-        <div class="metric-card bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
           <h4 class="text-xs font-bold text-slate-600 uppercase mb-3">Top 10 Docentes por Carga Horaria Mensual</h4>
           <canvas id="chartDocentesHoras" class="max-h-64"></canvas>
         </div>
-        <div class="metric-card bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
           <h4 class="text-xs font-bold text-slate-600 uppercase mb-3">Distribución de Estudiantes por Curso</h4>
           <canvas id="chartEstudiantesCurso" class="max-h-64"></canvas>
         </div>
-        <div class="metric-card bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
           <h4 class="text-xs font-bold text-slate-600 uppercase mb-3">Distribución de Clases por Turno</h4>
           <canvas id="chartTurnos" class="max-h-64"></canvas>
+        </div>
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 md:col-span-2">
+          <h4 class="text-xs font-bold text-slate-600 uppercase mb-3">Cobertura por semestre / curso</h4>
+          <canvas id="chartSemestres" class="max-h-72"></canvas>
         </div>
       </div>
     </div>
 
   </main>
+
+  <!-- MODAL EDICIÓN / NUEVO HORARIO -->
+  <div id="modalHorario" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm hidden items-center justify-center p-3 z-[60]">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-hidden flex flex-col">
+      <div class="p-4 bg-slate-900 text-white flex justify-between items-center">
+        <div><p class="text-[10px] uppercase tracking-widest text-blue-300 font-bold" id="horarioModalTipo">Editar registro</p><h3 class="text-base font-bold">Datos del horario</h3></div>
+        <button onclick="cerrarModalHorario()" class="p-2 hover:bg-slate-800 rounded-lg"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <form id="formHorario" onsubmit="guardarHorario(event)" class="p-4 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+        <input type="hidden" id="hId">
+        <div><label class="font-bold text-slate-600">Día</label><select id="hDia" class="mt-1 w-full border rounded-lg p-2"><option>LUN</option><option>MAR</option><option>MIE</option><option>JUE</option><option>VIE</option><option>SAB</option></select></div>
+        <div><label class="font-bold text-slate-600">Turno</label><select id="hTurno" class="mt-1 w-full border rounded-lg p-2"><option>MAÑANA</option><option>TARDE</option><option>NOCHE</option></select></div>
+        <div><label class="font-bold text-slate-600">Hora entrada</label><input id="hEntrada" required type="time" class="mt-1 w-full border rounded-lg p-2"></div>
+        <div><label class="font-bold text-slate-600">Hora salida</label><input id="hSalida" required type="time" class="mt-1 w-full border rounded-lg p-2"></div>
+        <div><label class="font-bold text-slate-600">Aula</label><input id="hAula" class="mt-1 w-full border rounded-lg p-2" placeholder="Ej. 204"></div>
+        <div><label class="font-bold text-slate-600">Edificio</label><input id="hEdificio" class="mt-1 w-full border rounded-lg p-2"></div>
+        <div class="sm:col-span-2"><label class="font-bold text-slate-600">Materia</label><input id="hMateria" required class="mt-1 w-full border rounded-lg p-2"></div>
+        <div><label class="font-bold text-slate-600">Grupo</label><input id="hGrupo" class="mt-1 w-full border rounded-lg p-2"></div>
+        <div><label class="font-bold text-slate-600">Curso / semestre</label><input id="hCurso" class="mt-1 w-full border rounded-lg p-2"></div>
+        <div class="sm:col-span-2"><label class="font-bold text-slate-600">Docente</label><input id="hDocente" class="mt-1 w-full border rounded-lg p-2"></div>
+        <div><label class="font-bold text-slate-600">Carrera</label><input id="hCarrera" required class="mt-1 w-full border rounded-lg p-2"></div>
+        <div><label class="font-bold text-slate-600">Estudiantes reales / programados</label><input id="hProgramados" required type="number" min="0" class="mt-1 w-full border rounded-lg p-2"></div>
+        <div class="sm:col-span-2 flex flex-col sm:flex-row gap-2 pt-2">
+          <button type="submit" class="touch-btn flex-1 bg-blue-600 text-white rounded-lg p-3 font-bold flex items-center justify-center gap-2"><i data-lucide="save" class="w-4 h-4"></i> Guardar cambios</button>
+          <button type="button" onclick="cerrarModalHorario()" class="touch-btn bg-slate-100 text-slate-700 rounded-lg p-3 font-bold">Cancelar</button>
+          <button type="button" id="btnEliminarHorario" onclick="eliminarHorarioActual()" class="hidden touch-btn bg-red-50 text-red-700 border border-red-200 rounded-lg p-3 font-bold">Eliminar registro</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <!-- MODAL FICHA DE DOCENTE -->
   <div id="modalDocente" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
@@ -429,19 +375,21 @@
 
   <!-- LÓGICA JAVASCRIPT -->
   <script>
+    let datosExcelBase = [];
     let datosRaw = [];
+    let registrosCustom = {};
     let carrerasDisponibles = [];
     let carrerasSeleccionadas = new Set();
     let diaActual = 'LUN';
     let estadoVisitas = {};
     let estadoConteoReal = {};
-
     let charts = {};
+    let unsubscribeVisitas = null;
+    let unsubscribeCustom = null;
 
     window.addEventListener('DOMContentLoaded', () => {
       lucide.createIcons();
       inicializarDias();
-      cambiarTab('dashboard');
       cargarExcelPorDefecto();
       conectarFirebase();
     });
@@ -458,23 +406,42 @@
         if (window.db) {
           clearInterval(checkDB);
           document.getElementById('dbStatus').innerText = 'Sincronizado con Firebase Firestore';
-          
-          window.onSnapshot(window.collection(window.db, "visitas_aulas"), (snapshot) => {
-            snapshot.docChanges().forEach((change) => {
-              const data = change.doc.data();
-              if (change.type === "added" || change.type === "modified") {
-                estadoVisitas[data.id] = data.visitado;
-                if (data.conteoReal !== undefined) estadoConteoReal[data.id] = data.conteoReal;
-              }
-              if (change.type === "removed") {
-                delete estadoVisitas[data.id];
-                delete estadoConteoReal[data.id];
-              }
+
+          unsubscribeVisitas = window.onSnapshot(window.collection(window.db, "visitas_aulas"), (snapshot) => {
+            estadoVisitas = {};
+            estadoConteoReal = {};
+            snapshot.forEach(ds => {
+              const data = ds.data();
+              if (data.visitado) estadoVisitas[data.id] = true;
+              if (data.conteoReal !== undefined) estadoConteoReal[data.id] = Number(data.conteoReal) || 0;
             });
             actualizarTodo();
-          });
+          }, () => { document.getElementById('dbStatus').innerText = 'Firestore: revisar reglas de acceso'; });
+
+          unsubscribeCustom = window.onSnapshot(window.collection(window.db, "horarios_custom"), (snapshot) => {
+            registrosCustom = {};
+            snapshot.forEach(ds => registrosCustom[ds.id] = ds.data());
+            reconstruirDatos();
+          }, () => {});
         }
       }, 300);
+    }
+
+    function reconstruirDatos(){
+      const base = datosExcelBase.map(x => ({...x}));
+      const usados = new Set();
+      Object.values(registrosCustom).forEach(c => {
+        if (c._deleted && c._base) { usados.add(c.id); return; }
+        const idx = base.findIndex(x => x.id === c.id);
+        if (idx >= 0) base[idx] = {...base[idx], ...c};
+        else if (!c._deleted) base.push({...c});
+      });
+      datosRaw = base.filter(x => !usados.has(x.id));
+      carrerasDisponibles = [...new Set(datosRaw.map(d => d.carrera).filter(Boolean))].sort();
+      const validas = [...carrerasSeleccionadas].filter(c => carrerasDisponibles.includes(c));
+      carrerasSeleccionadas = new Set(validas.length ? validas : carrerasDisponibles);
+      renderizarFiltroCarreras();
+      actualizarTodo();
     }
 
     async function cargarExcelPorDefecto() {
@@ -501,7 +468,7 @@
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
       const json = XLSX.utils.sheet_to_json(sheet, { defval: "" });
 
-      datosRaw = json.map((row, index) => {
+      datosExcelBase = json.map((row, index) => {
         const getVal = (keys) => {
           for (let k of keys) {
             const found = Object.keys(row).find(rk => rk.trim().toLowerCase() === k.toLowerCase());
@@ -541,11 +508,9 @@
         };
       });
 
-      carrerasDisponibles = [...new Set(datosRaw.map(d => d.carrera).filter(Boolean))].sort();
+      carrerasDisponibles = [...new Set(datosExcelBase.map(d => d.carrera).filter(Boolean))].sort();
       carrerasSeleccionadas = new Set(carrerasDisponibles);
-
-      renderizarFiltroCarreras();
-      actualizarTodo();
+      reconstruirDatos();
     }
 
     function calcularDuracion(h1, h2) {
@@ -579,7 +544,7 @@
             ? 'bg-blue-600 text-white border-blue-600 shadow-sm' 
             : 'bg-slate-100 text-slate-600 border-slate-300 hover:bg-slate-200'
         }`;
-        btn.innerHTML = `${active ? '<i data-lucide="check" class="w-3.5 h-3.5"></i>' : ''}<span>${carrera}</span>`;
+        btn.innerHTML = `${active ? '✔' : ''} ${carrera}`;
         btn.onclick = () => {
           if (carrerasSeleccionadas.has(carrera)) carrerasSeleccionadas.delete(carrera);
           else carrerasSeleccionadas.add(carrera);
@@ -607,49 +572,70 @@
 
       calcularMetricas(datosFiltrados);
       renderizarAulas();
-      renderizarDashboard(datosFiltrados);
-      renderizarSemestres(datosFiltrados);
       renderizarCursosArbol(datosFiltrados);
       renderizarDocentes();
       renderizarGraficas(datosFiltrados);
+      actualizarResumenPolitico(datosFiltrados);
+      renderizarPrioridades();
       lucide.createIcons();
     }
 
     function calcularMetricas(datos) {
-      // Estudiantes Únicos (sin duplicar días)
-      const gruposMap = new Map();
-      datos.forEach(d => {
-        const key = `${d.carrera}_${d.curso}_${d.materia}_${d.grupo}`;
-        if (!gruposMap.has(key) || gruposMap.get(key) < d.programados) {
-          gruposMap.set(key, d.programados);
-        }
-      });
-
-      let totalEstudiantes = 0;
-      gruposMap.forEach(v => totalEstudiantes += v);
-
-      let totalContactados = 0;
-      let visitadasCount = 0;
-
-      datos.forEach(d => {
-        if (estadoVisitas[d.id]) {
-          visitadasCount++;
-          totalContactados += (estadoConteoReal[d.id] !== undefined ? estadoConteoReal[d.id] : d.programados);
-        }
-      });
-
-      document.getElementById('mTotalEstudiantes').innerText = totalEstudiantes.toLocaleString();
-      document.getElementById('mTotalContactados').innerText = totalContactados.toLocaleString();
-      
-      const pCont = totalEstudiantes > 0 ? Math.round((totalContactados / totalEstudiantes) * 100) : 0;
-      document.getElementById('mPorcentajeContactados').innerText = `${pCont}% cobertura real`;
-
-      document.getElementById('mTotalAulas').innerText = datos.length.toLocaleString();
-      document.getElementById('mAulasVisitadas').innerText = visitadasCount.toLocaleString();
-
-      const pAulas = datos.length > 0 ? Math.round((visitadasCount / datos.length) * 100) : 0;
-      document.getElementById('mPorcentajeAulas').innerText = `${pAulas}% completado`;
+      const gruposMap=new Map();
+      datos.forEach(d=>{const key=claveGrupo(d); const prev=gruposMap.get(key); if(!prev || (d.programados||0)>prev.programados) gruposMap.set(key,{programados:d.programados||0,visitado:!!estadoVisitas[d.id],real:estadoConteoReal[d.id]}); else if(estadoVisitas[d.id]){prev.visitado=true;prev.real=Math.max(prev.real||0,estadoConteoReal[d.id]||d.programados||0);}});
+      let totalEstudiantes=0,totalContactados=0; gruposMap.forEach(g=>{totalEstudiantes+=g.programados;if(g.visitado)totalContactados+=g.real!==undefined?g.real:g.programados;});
+      const aulasVisitadas=new Set(datos.filter(d=>estadoVisitas[d.id]&&d.aula).map(d=>`${d.carrera}|${d.aula}`));
+      document.getElementById('mTotalEstudiantes').innerText=totalEstudiantes.toLocaleString();
+      document.getElementById('mTotalContactados').innerText=totalContactados.toLocaleString();
+      document.getElementById('mPorcentajeContactados').innerText=`${totalEstudiantes?Math.min(100,Math.round(totalContactados/totalEstudiantes*100)):0}% cobertura real`;
+      document.getElementById('mTotalAulas').innerText=datos.length.toLocaleString();
+      document.getElementById('mAulasVisitadas').innerText=aulasVisitadas.size.toLocaleString();
+      const aulasTotal=new Set(datos.filter(d=>d.aula).map(d=>`${d.carrera}|${d.aula}`)).size;
+      document.getElementById('mPorcentajeAulas').innerText=`${aulasTotal?Math.round(aulasVisitadas.size/aulasTotal*100):0}% de aulas físicas`;
     }
+
+    function claveGrupo(d){ return `${d.carrera}|${d.curso}|${d.materia}|${d.grupo}`; }
+    function gruposCubiertos(){
+      const s=new Set(); datosRaw.forEach(d=>{ if(estadoVisitas[d.id]) s.add(claveGrupo(d)); }); return s;
+    }
+    function puntajePrioridad(d){
+      const max = Math.max(1, ...datosRaw.map(x=>Number(x.programados)||0));
+      const alumnos = (Number(d.programados)||0)/max*70;
+      const repeticion = datosRaw.filter(x=>claveGrupo(x)===claveGrupo(d)).length > 1 ? 10 : 0;
+      const turno = d.turno === document.getElementById('rTurno')?.value ? 10 : 0;
+      return Math.round(alumnos + repeticion + turno);
+    }
+    function prioridadLabel(score){ return score>=75?'ALTA':score>=50?'MEDIA':'NORMAL'; }
+
+    function actualizarResumenPolitico(datos){
+      const grupos=new Map();
+      datos.forEach(d=>{const k=claveGrupo(d); if(!grupos.has(k)) grupos.set(k,{n:d.programados,visitado:false,curso:d.curso}); if(estadoVisitas[d.id]) grupos.get(k).visitado=true;});
+      let total=0,cubiertos=0; grupos.forEach(g=>{total+=g.n||0;if(g.visitado)cubiertos+=g.n||0;});
+      const pct=total?Math.round(cubiertos/total*100):0;
+      const cursos={}; datos.forEach(d=>{const c=String(d.curso||'Sin curso'); if(!cursos[c])cursos[c]={total:0,cub:0}; cursos[c].total+=d.programados||0; if(estadoVisitas[d.id])cursos[c].cub+=d.programados||0;});
+      const orden=Object.entries(cursos).sort((a,b)=>(b[1].total-b[1].cub)-(a[1].total-a[1].cub));
+      const fort=Object.entries(cursos).sort((a,b)=>(b[1].cub/(b[1].total||1))-(a[1].cub/(a[1].total||1)))[0];
+      const brecha=orden[0];
+      document.getElementById('fortalezaTexto').textContent = fort ? `Curso ${fort[0]} con ${Math.round(fort[1].cub/(fort[1].total||1)*100)}% de cobertura.` : 'Aún sin datos suficientes.';
+      document.getElementById('brechaTexto').textContent = brecha ? `Curso ${brecha[0]} concentra ${Math.max(0,brecha[1].total-brecha[1].cub).toLocaleString()} estudiantes pendientes.` : 'Sin brechas detectadas.';
+      document.getElementById('accionTexto').textContent = pct<50 ? 'Atacar primero grupos masivos y no visitados.' : pct<80 ? 'Cerrar los grupos pendientes de mayor tamaño.' : 'Completar los últimos grupos y validar datos.';
+    }
+
+    function renderizarPrioridades(){
+      const turno=document.getElementById('rTurno')?.value||'MAÑANA'; const cub=gruposCubiertos();
+      let list=datosRaw.filter(d=>d.turno===turno && !cub.has(claveGrupo(d)));
+      const vistosIds=new Set(); list=list.filter(d=>{const k=claveGrupo(d); if(vistosIds.has(k))return false; vistosIds.add(k); return true;});
+      list.sort((a,b)=>puntajePrioridad(b)-puntajePrioridad(a) || b.programados-a.programados);
+      const top=list.slice(0,15);
+      const totalEst=list.reduce((s,d)=>s+(d.programados||0),0);
+      document.getElementById('prioridadesResumen').innerHTML=`<div class="bg-slate-50 border rounded-lg p-3"><p class="text-[10px] uppercase font-bold text-slate-500">Pendientes elegibles</p><p class="text-xl font-extrabold">${list.length}</p></div><div class="bg-red-50 border border-red-100 rounded-lg p-3"><p class="text-[10px] uppercase font-bold text-red-600">Top 15 estudiantes</p><p class="text-xl font-extrabold text-red-700">${top.reduce((s,d)=>s+(d.programados||0),0).toLocaleString()}</p></div><div class="bg-blue-50 border border-blue-100 rounded-lg p-3"><p class="text-[10px] uppercase font-bold text-blue-600">Potencial del turno</p><p class="text-xl font-extrabold text-blue-700">${totalEst.toLocaleString()}</p></div>`;
+      const c=document.getElementById('prioridadesLista'); c.innerHTML='';
+      if(!top.length){c.innerHTML='<div class="md:col-span-3 text-center text-xs text-slate-400 py-6">No hay grupos pendientes en este turno.</div>';return;}
+      top.forEach((d,i)=>{const score=puntajePrioridad(d); const el=document.createElement('button'); el.className=`text-left p-3 rounded-xl bg-white border shadow-sm hover:shadow-md hover:border-blue-300 transition priority-${i<3?i+1:3}`; el.onclick=()=>abrirEdicionHorario(d.id); el.innerHTML=`<div class="flex justify-between gap-2"><span class="text-[10px] font-extrabold text-slate-400">#${i+1}</span><span class="text-[10px] font-extrabold ${score>=75?'text-red-600':score>=50?'text-amber-600':'text-blue-600'}">${prioridadLabel(score)}</span></div><p class="font-extrabold text-sm text-slate-900 mt-1">${d.aula||'S/A'} · ${d.programados} est.</p><p class="text-xs font-bold text-slate-700 truncate">${d.materia}</p><p class="text-[10px] text-slate-500">${d.curso} · ${d.grupo} · ${d.dia} ${d.horaEntrada}-${d.horaSalida}</p><p class="text-[10px] text-slate-400 mt-1 truncate">${d.docente}</p>`; c.appendChild(el);});
+      lucide.createIcons();
+    }
+    function irAPrioridades(){ document.getElementById('prioridadesLista')?.scrollIntoView({behavior:'smooth',block:'start'}); }
+    function seleccionarSoloPendientes(){ document.getElementById('fEstado').value='PENDIENTE'; renderizarAulas(); }
 
     function renderizarTabsDias() {
       document.querySelectorAll('.tab-dia').forEach(btn => {
@@ -669,107 +655,38 @@
     }
 
     function renderizarAulas() {
-      const container = document.getElementById('gridAulas');
-      container.innerHTML = '';
-
-      const tSel = document.getElementById('fTurno').value;
-      const cSel = document.getElementById('fCapacidad').value;
-      const eSel = document.getElementById('fEstado').value;
-      const bSel = document.getElementById('fBusqueda').value.toLowerCase();
-
-      let list = datosRaw.filter(d => carrerasSeleccionadas.has(d.carrera) && d.dia === diaActual);
-
-      if (tSel !== 'TODOS') list = list.filter(d => d.turno === tSel);
-      if (eSel === 'PENDIENTE') list = list.filter(d => !estadoVisitas[d.id]);
-      if (eSel === 'VISITADO') list = list.filter(d => estadoVisitas[d.id]);
-
-      if (cSel !== 'TODOS') {
-        list = list.filter(d => {
-          if (cSel === 'CRITICA') return d.programados >= 80;
-          if (cSel === 'GRANDE') return d.programados >= 50 && d.programados < 80;
-          if (cSel === 'MEDIANA') return d.programados >= 20 && d.programados < 50;
-          if (cSel === 'PEQUENA') return d.programados < 20;
-          return true;
-        });
-      }
-
-      if (bSel) {
-        list = list.filter(d => 
-          d.aula.toLowerCase().includes(bSel) ||
-          d.materia.toLowerCase().includes(bSel) ||
-          d.docente.toLowerCase().includes(bSel)
-        );
-      }
-
-      list.sort((a, b) => a.horaEntrada.localeCompare(b.horaEntrada) || a.aula.localeCompare(b.aula));
-
-      if (list.length === 0) {
-        container.innerHTML = `
-          <div class="col-span-full py-12 text-center text-slate-400">
-            <p class="text-xs">No hay aulas programadas para este filtro.</p>
-          </div>
-        `;
-        return;
-      }
-
-      list.forEach(item => {
-        const esVisitado = !!estadoVisitas[item.id];
-        const conteoActual = estadoConteoReal[item.id] !== undefined ? estadoConteoReal[item.id] : item.programados;
-
-        let claseEstilo = 'card-mediana';
-        if (item.programados >= 80) claseEstilo = 'card-critica';
-        else if (item.programados >= 50) claseEstilo = 'card-grande';
-        else if (item.programados < 20) claseEstilo = 'card-pequena';
-
-        const card = document.createElement('div');
-        card.className = `p-4 rounded-xl shadow-sm transition space-y-3 relative ${claseEstilo} ${esVisitado ? 'card-visited' : ''}`;
-
-        card.innerHTML = `
+      const container=document.getElementById('gridAulas'); container.innerHTML='';
+      const tSel=document.getElementById('fTurno').value, cSel=document.getElementById('fCapacidad').value;
+      const eSel=document.getElementById('fEstado').value, bSel=document.getElementById('fBusqueda').value.toLowerCase();
+      const ocultar=document.getElementById('ocultarCubiertos')?.checked ?? true;
+      const cub=gruposCubiertos();
+      let list=datosRaw.filter(d=>carrerasSeleccionadas.has(d.carrera)&&d.dia===diaActual);
+      if(tSel!=='TODOS') list=list.filter(d=>d.turno===tSel);
+      if(eSel==='PENDIENTE') list=list.filter(d=>!estadoVisitas[d.id]);
+      if(eSel==='VISITADO') list=list.filter(d=>estadoVisitas[d.id]);
+      if(cSel!=='TODOS') list=list.filter(d=>cSel==='CRITICA'?d.programados>=80:cSel==='GRANDE'?d.programados>=50&&d.programados<80:cSel==='MEDIANA'?d.programados>=20&&d.programados<50:d.programados<20);
+      if(bSel) list=list.filter(d=>[d.aula,d.materia,d.docente,d.edificio,d.curso,d.grupo].some(v=>String(v||'').toLowerCase().includes(bSel)));
+      if(ocultar && eSel!=='VISITADO') list=list.filter(d=>!cub.has(claveGrupo(d)));
+      list.sort((a,b)=>b.programados-a.programados || a.horaEntrada.localeCompare(b.horaEntrada));
+      if(!list.length){container.innerHTML='<div class="col-span-full py-12 text-center text-slate-400"><i data-lucide="check-circle-2" class="w-8 h-8 mx-auto mb-2 text-emerald-400"></i><p class="text-sm font-bold">No hay visitas pendientes con estos filtros.</p><p class="text-xs mt-1">Prueba mostrando los horarios cubiertos o cambia el turno.</p></div>';lucide.createIcons();return;}
+      list.forEach(item=>{
+        const esVisitado=!!estadoVisitas[item.id], estaCubierto=cub.has(claveGrupo(item)) && !esVisitado;
+        const conteoActual=estadoConteoReal[item.id]!==undefined?estadoConteoReal[item.id]:item.programados;
+        let claseEstilo=item.programados>=80?'card-critica':item.programados>=50?'card-grande':item.programados<20?'card-pequena':'card-mediana';
+        const score=puntajePrioridad(item), nivel=prioridadLabel(score);
+        const card=document.createElement('article'); card.className=`p-4 rounded-xl shadow-sm transition space-y-3 relative ${claseEstilo} ${esVisitado?'card-visited':''} ${estaCubierto?'card-covered':''}`;
+        card.innerHTML=`
           <div class="flex justify-between items-start gap-2">
-            <div>
-              <span class="text-[11px] font-bold text-slate-700 bg-white/80 px-2 py-0.5 rounded border">
-                ${item.horaEntrada} - ${item.horaSalida}
-              </span>
-              <h4 class="text-base font-bold text-slate-900 mt-1">Aula: ${item.aula || 'S/A'}</h4>
-              <p class="text-[10px] text-slate-500">${item.edificio}</p>
-            </div>
-            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${esVisitado ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-700'}">
-              ${esVisitado ? '<i data-lucide="check" class="w-3 h-3 inline"></i> Visitado' : 'Pendiente'}
-            </span>
+            <div class="min-w-0"><span class="text-[11px] font-bold text-slate-700 bg-white/80 px-2 py-1 rounded border">${item.horaEntrada} - ${item.horaSalida}</span><h4 class="text-lg font-extrabold text-slate-900 mt-2">Aula ${item.aula||'S/A'}</h4><p class="text-[10px] text-slate-500">${item.edificio||'Edificio no registrado'} · ${item.dia}</p></div>
+            <span class="text-[10px] font-extrabold px-2 py-1 rounded-full uppercase ${esVisitado?'bg-emerald-600 text-white':estaCubierto?'bg-slate-400 text-white':score>=75?'bg-red-600 text-white':score>=50?'bg-amber-500 text-white':'bg-blue-600 text-white'}">${esVisitado?'Visitado':estaCubierto?'Cubierto':nivel}</span>
           </div>
-
-          <div class="border-t border-slate-200/60 pt-2 space-y-1">
-            <p class="text-xs font-bold text-slate-800">${item.materia} <span class="text-blue-600">(Grp ${item.grupo})</span></p>
-            <p class="text-xs text-slate-600 cursor-pointer hover:underline" onclick="abrirModalDocente('${item.docente}')">
-              <i data-lucide="user-round" class="w-3.5 h-3.5 inline-block mr-1"></i>${item.docente}
-            </p>
-            <p class="text-[10px] text-slate-500">${item.carrera} - ${item.curso}º Curso</p>
-          </div>
-
-          <div class="bg-white/90 p-2 rounded-lg border border-slate-200 flex justify-between items-center">
-            <div>
-              <span class="text-[9px] font-bold text-slate-400 block uppercase">Alumnos Presentes</span>
-              <span class="text-xs text-slate-600">Prog: <strong>${item.programados}</strong></span>
-            </div>
-            <div class="flex items-center gap-1.5">
-              <button onclick="modificarConteo('${item.id}', -1)" class="w-6 h-6 rounded bg-slate-200 hover:bg-slate-300 font-bold text-slate-700 text-xs flex items-center justify-center">-</button>
-              <span class="text-xs font-bold text-slate-900 w-6 text-center">${conteoActual}</span>
-              <button onclick="modificarConteo('${item.id}', 1)" class="w-6 h-6 rounded bg-slate-200 hover:bg-slate-300 font-bold text-slate-700 text-xs flex items-center justify-center">+</button>
-            </div>
-          </div>
-
-          <button onclick="toggleVisita('${item.id}')" class="w-full py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 ${
-            esVisitado 
-              ? 'bg-red-100 hover:bg-red-200 text-red-700 border border-red-300' 
-              : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm'
-          }">
-            ${esVisitado ? '<i data-lucide="x" class="w-4 h-4"></i> Desmarcar registro' : '<i data-lucide="check" class="w-4 h-4"></i> Marcar aula visitada'}
-          </button>
+          <div class="border-t border-slate-200/70 pt-2 space-y-1"><p class="text-sm font-extrabold text-slate-800">${item.materia} <span class="text-blue-600">· Grupo ${item.grupo}</span></p><p class="text-xs text-slate-600">${item.docente}</p><p class="text-[10px] text-slate-500">${item.carrera} · Curso/Semestre ${item.curso}</p></div>
+          <div class="bg-white/90 p-2 rounded-lg border border-slate-200 flex justify-between items-center"><div><span class="text-[9px] font-bold text-slate-400 block uppercase">Estudiantes</span><span class="text-xs text-slate-600">Base: <strong>${item.programados}</strong></span></div><div class="flex items-center gap-1.5"><button onclick="modificarConteo('${item.id}',-1)" class="touch-btn w-9 h-9 rounded bg-slate-200 font-bold">−</button><span class="text-sm font-extrabold text-slate-900 w-8 text-center">${conteoActual}</span><button onclick="modificarConteo('${item.id}',1)" class="touch-btn w-9 h-9 rounded bg-slate-200 font-bold">+</button></div></div>
+          <div class="grid grid-cols-2 gap-2"><button onclick="toggleVisita('${item.id}')" class="touch-btn py-2.5 px-2 rounded-lg text-xs font-extrabold flex items-center justify-center gap-1.5 ${esVisitado?'bg-red-100 text-red-700 border border-red-300':'bg-emerald-600 text-white'}">${esVisitado?'Eliminar visita':'Marcar visitada'}</button><button onclick="abrirEdicionHorario('${item.id}')" class="touch-btn py-2.5 px-2 rounded-lg text-xs font-extrabold bg-white border border-slate-300 text-slate-700 flex items-center justify-center gap-1.5"><i data-lucide="pencil" class="w-3.5 h-3.5"></i> Editar datos</button></div>
+          ${estaCubierto?'<p class="text-[10px] font-bold text-slate-500 bg-slate-100 rounded p-2">Este grupo/materia ya tiene una visita registrada. Este horario queda fuera de la ruta para evitar duplicar el recorrido.</p>':''}
         `;
-
         container.appendChild(card);
-      });
-      lucide.createIcons();
+      }); lucide.createIcons();
     }
 
     function renderizarCursosArbol(datos) {
@@ -938,233 +855,114 @@
       document.getElementById('modalDocente').classList.add('hidden');
     }
 
-    function agruparSemestres(datos) {
-      const map = {};
-      datos.forEach(d => {
-        const semestre = String(d.curso || 'Sin definir').trim();
-        if (!map[semestre]) map[semestre] = {
-          semestre, total:0, visitadas:0, pendientes:0,
-          estudiantes:0, contactados:0, aulasUnicas:new Set(), visitadasUnicas:new Set()
-        };
-        const x = map[semestre];
-        x.total++;
-        x.aulasUnicas.add(`${d.dia}_${d.horaEntrada}_${d.aula}_${d.materia}_${d.grupo}`);
-        if (estadoVisitas[d.id]) {
-          x.visitadas++;
-          x.visitadasUnicas.add(`${d.dia}_${d.horaEntrada}_${d.aula}_${d.materia}_${d.grupo}`);
-          x.contactados += estadoConteoReal[d.id] !== undefined ? estadoConteoReal[d.id] : d.programados;
-        } else x.pendientes++;
-        x.estudiantes += d.programados;
-      });
-      return Object.values(map).sort((a,b) => {
-        const na = parseFloat(a.semestre), nb = parseFloat(b.semestre);
-        if (!Number.isNaN(na) && !Number.isNaN(nb)) return na-nb;
-        return a.semestre.localeCompare(b.semestre);
-      }).map(x => ({...x, porcentaje:x.total ? Math.round(x.visitadas/x.total*100) : 0}));
-    }
-
-    function renderizarDashboard(datos) {
-      const sems = agruparSemestres(datos);
-      const total = datos.length;
-      const visitadas = datos.filter(d => estadoVisitas[d.id]).length;
-      const pendientes = total - visitadas;
-      const estudiantes = calcularTotalEstudiantes(datos);
-      const contactados = datos.reduce((acc,d) => acc + (estadoVisitas[d.id] ? (estadoConteoReal[d.id] ?? d.programados) : 0), 0);
-      const cobertura = total ? Math.round(visitadas/total*100) : 0;
-      const contactoPct = estudiantes ? Math.min(100, Math.round(contactados/estudiantes*100)) : 0;
-
-      document.getElementById('dashCobertura').innerText = `${cobertura}%`;
-      document.getElementById('dashCoberturaBar').style.width = `${cobertura}%`;
-      document.getElementById('dashCoberturaTexto').innerText = `${visitadas} de ${total} aulas/sesiones registradas`;
-      document.getElementById('dashEstudiantes').innerText = estudiantes.toLocaleString();
-      document.getElementById('dashContactados').innerText = contactados.toLocaleString();
-      document.getElementById('dashContactoPct').innerText = `${contactoPct}% cobertura de estudiantes`;
-      document.getElementById('dashVisitadas').innerText = visitadas.toLocaleString();
-      document.getElementById('dashPendientes').innerText = `${pendientes.toLocaleString()} pendientes`;
-
-      const avanzado = sems.length ? [...sems].sort((a,b)=>b.porcentaje-a.porcentaje || b.visitadas-a.visitadas)[0] : null;
-      const pendiente = sems.length ? [...sems].sort((a,b)=>a.porcentaje-b.porcentaje || b.pendientes-a.pendientes)[0] : null;
-      document.getElementById('dashSemestreTop').innerText = avanzado ? `Sem. ${avanzado.semestre}` : '—';
-      document.getElementById('dashSemestreTexto').innerText = avanzado ? `${avanzado.porcentaje}% completado` : 'Sin datos';
-
-      let prioridad = datos.filter(d => !estadoVisitas[d.id]).sort((a,b)=>b.programados-a.programados || a.horaEntrada.localeCompare(b.horaEntrada))[0];
-      if (prioridad) {
-        document.getElementById('dashTituloPrioridad').innerText = `Prioridad: aula ${prioridad.aula || 'S/A'}`;
-        document.getElementById('dashDetallePrioridad').innerText = `Semestre ${prioridad.curso} · ${prioridad.materia} · ${prioridad.programados} estudiantes · ${prioridad.horaEntrada}-${prioridad.horaSalida}`;
-      } else {
-        document.getElementById('dashTituloPrioridad').innerText = total ? 'Recorrido completado' : 'Sin datos cargados';
-        document.getElementById('dashDetallePrioridad').innerText = total ? 'No quedan aulas pendientes con las carreras seleccionadas.' : 'Carga torres.xlsx o selecciona carreras.';
-      }
-
-      const list = document.getElementById('dashSemestres');
-      list.innerHTML = sems.length ? sems.map(x => `
-        <div>
-          <div class="flex justify-between items-center gap-2 mb-1">
-            <span class="text-xs font-extrabold text-slate-700">Semestre ${x.semestre}</span>
-            <span class="text-xs font-black ${x.porcentaje >= 80 ? 'text-emerald-600' : x.porcentaje >= 50 ? 'text-blue-600' : 'text-orange-600'}">${x.porcentaje}%</span>
-          </div>
-          <div class="progress-track"><div class="progress-fill ${x.porcentaje >= 80 ? 'bg-emerald-500' : x.porcentaje >= 50 ? 'bg-blue-600' : 'bg-orange-500'}" style="width:${x.porcentaje}%"></div></div>
-          <div class="flex justify-between text-[9px] text-slate-400 mt-1"><span>${x.visitadas} visitadas</span><span>${x.pendientes} pendientes</span></div>
-        </div>`).join('') : '<p class="text-xs text-slate-400 py-5">No hay información de semestres.</p>';
-
-      const ctx = document.getElementById('chartDashboard')?.getContext('2d');
-      if (ctx) {
-        if (charts.dashboard) charts.dashboard.destroy();
-        charts.dashboard = new Chart(ctx, {
-          type:'doughnut',
-          data:{ labels:['Visitadas','Pendientes'], datasets:[{data:[visitadas,pendientes], backgroundColor:['#2563eb','#e2e8f0'], borderWidth:0}]},
-          options:{responsive:true, maintainAspectRatio:false, cutout:'72%', plugins:{legend:{position:'bottom', labels:{boxWidth:12,usePointStyle:true}}}}
-        });
-      }
-    }
-
-    function renderizarSemestres(datos) {
-      const sems = agruparSemestres(datos);
-      const container = document.getElementById('semestresContainer');
-      if (!container) return;
-      container.innerHTML = sems.length ? sems.map(x => {
-        const estado = x.porcentaje >= 90 ? 'Prácticamente terminado' : x.porcentaje >= 70 ? 'En cierre' : x.porcentaje >= 40 ? 'En avance' : 'Prioridad alta';
-        const tone = x.porcentaje >= 90 ? 'emerald' : x.porcentaje >= 70 ? 'blue' : x.porcentaje >= 40 ? 'indigo' : 'orange';
-        return `
-          <article class="rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm">
-            <div class="flex justify-between items-start gap-3">
-              <div>
-                <p class="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Semestre</p>
-                <h3 class="text-2xl font-black text-slate-900">${x.semestre}</h3>
-              </div>
-              <span class="px-2.5 py-1 rounded-full bg-${tone}-50 text-${tone}-700 text-[10px] font-extrabold border border-${tone}-100">${estado}</span>
-            </div>
-            <div class="mt-4 flex items-end justify-between">
-              <span class="text-4xl font-black text-slate-900">${x.porcentaje}%</span>
-              <span class="text-[10px] text-slate-500 text-right">${x.visitadas} / ${x.total}<br>sesiones visitadas</span>
-            </div>
-            <div class="progress-track mt-3"><div class="progress-fill ${x.porcentaje >= 80 ? 'bg-emerald-500' : x.porcentaje >= 50 ? 'bg-blue-600' : 'bg-orange-500'}" style="width:${x.porcentaje}%"></div></div>
-            <div class="grid grid-cols-2 gap-2 mt-4">
-              <div class="bg-white rounded-xl p-2.5 border border-slate-200"><span class="block text-[9px] text-slate-400 uppercase font-bold">Pendientes</span><b class="text-lg">${x.pendientes}</b></div>
-              <div class="bg-white rounded-xl p-2.5 border border-slate-200"><span class="block text-[9px] text-slate-400 uppercase font-bold">Estudiantes</span><b class="text-lg">${x.estudiantes.toLocaleString()}</b></div>
-            </div>
-          </article>`;
-      }).join('') : '<div class="col-span-full py-12 text-center text-slate-400 text-sm">No hay semestres disponibles con los filtros actuales.</div>';
-
-      const avanzado = sems.length ? [...sems].sort((a,b)=>b.porcentaje-a.porcentaje || b.visitadas-a.visitadas)[0] : null;
-      const mayorPendiente = sems.length ? [...sems].sort((a,b)=>b.pendientes-a.pendientes || a.porcentaje-b.porcentaje)[0] : null;
-      document.getElementById('semestreEstadoGlobal').innerText = avanzado ? `Más avanzado: ${avanzado.semestre} · ${avanzado.porcentaje}%` : 'Sin datos';
-
-      document.getElementById('semestreLectura').innerHTML = avanzado ? `
-        <div class="p-4 rounded-xl bg-emerald-50 border border-emerald-100"><div class="flex gap-3"><i data-lucide="trending-up" class="w-5 h-5 text-emerald-600"></i><div><p class="text-xs font-extrabold text-emerald-800">Semestre más avanzado</p><p class="text-sm text-emerald-700 mt-1">El semestre <b>${avanzado.semestre}</b> lleva <b>${avanzado.porcentaje}%</b> del recorrido.</p></div></div></div>
-        <div class="p-4 rounded-xl bg-orange-50 border border-orange-100"><div class="flex gap-3"><i data-lucide="alert-triangle" class="w-5 h-5 text-orange-600"></i><div><p class="text-xs font-extrabold text-orange-800">Mayor carga pendiente</p><p class="text-sm text-orange-700 mt-1">El semestre <b>${mayorPendiente.semestre}</b> tiene <b>${mayorPendiente.pendientes}</b> sesiones sin visitar.</p></div></div></div>
-        <div class="p-4 rounded-xl bg-blue-50 border border-blue-100"><div class="flex gap-3"><i data-lucide="route" class="w-5 h-5 text-blue-600"></i><div><p class="text-xs font-extrabold text-blue-800">Estrategia</p><p class="text-sm text-blue-700 mt-1">Prioriza primero los semestres con menor porcentaje y aulas de mayor concentración estudiantil.</p></div></div></div>` :
-        '<p class="text-xs text-slate-400">Carga datos para generar el diagnóstico.</p>';
-
-      const ctx = document.getElementById('chartSemestres')?.getContext('2d');
-      if (ctx) {
-        if (charts.semestres) charts.semestres.destroy();
-        charts.semestres = new Chart(ctx, {
-          type:'bar',
-          data:{labels:sems.map(x=>`Sem. ${x.semestre}`),datasets:[{label:'Avance %',data:sems.map(x=>x.porcentaje),backgroundColor:'#2563eb',borderRadius:8}]},
-          options:{responsive:true,maintainAspectRatio:false,scales:{y:{beginAtZero:true,max:100,ticks:{callback:v=>v+'%'}}},plugins:{legend:{display:false}}}
-        });
-      }
-      lucide.createIcons();
-    }
-
-    function calcularTotalEstudiantes(datos) {
-      const grupos = new Map();
-      datos.forEach(d => {
-        const key = `${d.carrera}_${d.curso}_${d.materia}_${d.grupo}`;
-        if (!grupos.has(key) || grupos.get(key) < d.programados) grupos.set(key,d.programados);
-      });
-      return [...grupos.values()].reduce((a,b)=>a+b,0);
-    }
-
     function renderizarGraficas(datos) {
       const ctx1 = document.getElementById('chartDocentesEstudiantes')?.getContext('2d');
       const ctx2 = document.getElementById('chartDocentesHoras')?.getContext('2d');
+      const ctx3 = document.getElementById('chartSemestres')?.getContext('2d');
+
       if (!ctx1 || !ctx2) return;
+
       const docMap = {};
       datos.forEach(d => {
-        if (!docMap[d.docente]) docMap[d.docente] = { horas:0, grupos:new Map() };
+        if (!docMap[d.docente]) docMap[d.docente] = { horas: 0, grupos: new Map() };
         docMap[d.docente].horas += d.duracionHoras;
         const k = `${d.carrera}_${d.materia}_${d.grupo}`;
-        if (!docMap[d.docente].grupos.has(k) || docMap[d.docente].grupos.get(k) < d.programados) docMap[d.docente].grupos.set(k,d.programados);
+        if (!docMap[d.docente].grupos.has(k) || docMap[d.docente].grupos.get(k) < d.programados) {
+          docMap[d.docente].grupos.set(k, d.programados);
+        }
       });
+
       const docentesArr = Object.keys(docMap).map(name => {
-        let est=0; docMap[name].grupos.forEach(v=>est+=v);
-        return {nombre:name,estudiantes:est,horasMensuales:docMap[name].horas*4};
+        let est = 0;
+        docMap[name].grupos.forEach(v => est += v);
+        return { nombre: name, estudiantes: est, horasMensuales: docMap[name].horas * 4 };
       });
-      const topEst=[...docentesArr].sort((a,b)=>b.estudiantes-a.estudiantes).slice(0,10);
-      const topHoras=[...docentesArr].sort((a,b)=>b.horasMensuales-a.horasMensuales).slice(0,10);
+
+      const topEst = [...docentesArr].sort((a,b) => b.estudiantes - a.estudiantes).slice(0, 10);
+      const topHoras = [...docentesArr].sort((a,b) => b.horasMensuales - a.horasMensuales).slice(0, 10);
+
       if (charts.c1) charts.c1.destroy();
-      charts.c1=new Chart(ctx1,{type:'bar',data:{labels:topEst.map(d=>d.nombre.split(' ')[0]),datasets:[{label:'Estudiantes Únicos',data:topEst.map(d=>d.estudiantes),backgroundColor:'#2563eb',borderRadius:6}]},options:{responsive:true,plugins:{legend:{display:false}}}});
+      charts.c1 = new Chart(ctx1, {
+        type: 'bar',
+        data: {
+          labels: topEst.map(d => d.nombre.split(' ')[0]),
+          datasets: [{ label: 'Estudiantes Únicos', data: topEst.map(d => d.estudiantes), backgroundColor: '#3b82f6' }]
+        },
+        options: { responsive: true, plugins: { legend: { display: false } } }
+      });
+
       if (charts.c2) charts.c2.destroy();
-      charts.c2=new Chart(ctx2,{type:'bar',data:{labels:topHoras.map(d=>d.nombre.split(' ')[0]),datasets:[{label:'Horas Mensuales',data:topHoras.map(d=>d.horasMensuales),backgroundColor:'#7c3aed',borderRadius:6}]},options:{responsive:true,plugins:{legend:{display:false}}}});
+      charts.c2 = new Chart(ctx2, {
+        type: 'bar',
+        data: {
+          labels: topHoras.map(d => d.nombre.split(' ')[0]),
+          datasets: [{ label: 'Horas Mensuales', data: topHoras.map(d => d.horasMensuales), backgroundColor: '#8b5cf6' }]
+        },
+        options: { responsive: true, plugins: { legend: { display: false } } }
+      });
     }
+
+
+      if(ctx3){
+        const sm={}; datos.forEach(d=>{const k=String(d.curso||'Sin curso'); if(!sm[k])sm[k]={total:0,cub:0}; sm[k].total+=d.programados||0; if(estadoVisitas[d.id])sm[k].cub+=d.programados||0;});
+        if(charts.c3) charts.c3.destroy();
+        const labels=Object.keys(sm).sort((a,b)=>Number(a)-Number(b));
+        charts.c3=new Chart(ctx3,{type:'bar',data:{labels,datasets:[{label:'Estudiantes cubiertos',data:labels.map(k=>sm[k].cub)},{label:'Estudiantes pendientes',data:labels.map(k=>Math.max(0,sm[k].total-sm[k].cub))}]},options:{responsive:true,scales:{x:{stacked:true},y:{stacked:true,beginAtZero:true}},plugins:{legend:{position:'bottom'}}}});
+      }
 
     async function toggleVisita(id) {
-      const nuevoEstado = !estadoVisitas[id];
-      estadoVisitas[id] = nuevoEstado;
-
-      if (window.db) {
-        if (nuevoEstado) {
-          const item = datosRaw.find(d => d.id === id);
-          await window.setDoc(window.doc(window.db, "visitas_aulas", id), {
-            id: id,
-            visitado: true,
-            conteoReal: estadoConteoReal[id] !== undefined ? estadoConteoReal[id] : (item ? item.programados : 0),
-            fecha: new Date().toISOString()
-          });
-        } else {
-          await window.deleteDoc(window.doc(window.db, "visitas_aulas", id));
-          delete estadoConteoReal[id];
-        }
-      }
-      actualizarTodo();
+      const nuevoEstado=!estadoVisitas[id];
+      if(!window.db){estadoVisitas[id]=nuevoEstado; actualizarTodo(); return;}
+      try{
+        const item=datosRaw.find(d=>d.id===id); if(!item)return;
+        if(nuevoEstado){
+          await window.setDoc(window.doc(window.db,'visitas_aulas',id),{id,visitado:true,grupoClave:claveGrupo(item),aula:item.aula,materia:item.materia,curso:item.curso,carrera:item.carrera,turno:item.turno,conteoReal:estadoConteoReal[id]!==undefined?estadoConteoReal[id]:item.programados,fecha:new Date().toISOString()});
+        }else await window.deleteDoc(window.doc(window.db,'visitas_aulas',id));
+      }catch(e){alert('No se pudo guardar la visita. Revisa la conexión o las reglas de Firestore.');}
     }
 
-    async function modificarConteo(id, delta) {
-      const item = datosRaw.find(d => d.id === id);
-      const prev = estadoConteoReal[id] !== undefined ? estadoConteoReal[id] : (item ? item.programados : 0);
-      const nval = Math.max(0, prev + delta);
+    async function modificarConteo(id,delta){
+      const item=datosRaw.find(d=>d.id===id); const prev=estadoConteoReal[id]!==undefined?estadoConteoReal[id]:(item?.programados||0); const n=Math.max(0,prev+delta); estadoConteoReal[id]=n;
+      if(window.db && estadoVisitas[id]){await window.setDoc(window.doc(window.db,'visitas_aulas',id),{id,visitado:true,conteoReal:n,fecha:new Date().toISOString()},{merge:true});}
+      renderizarAulas(); calcularMetricas(datosRaw.filter(d=>carrerasSeleccionadas.has(d.carrera)));
+    }
 
-      estadoConteoReal[id] = nval;
-
-      if (window.db && estadoVisitas[id]) {
-        await window.setDoc(window.doc(window.db, "visitas_aulas", id), {
-          id: id,
-          visitado: true,
-          conteoReal: nval,
-          fecha: new Date().toISOString()
-        }, { merge: true });
-      }
-      actualizarTodo();
+    function abrirEdicionHorario(id){
+      const d=datosRaw.find(x=>x.id===id); if(!d)return; llenarFormularioHorario(d,false); document.getElementById('modalHorario').classList.remove('hidden');document.getElementById('modalHorario').classList.add('flex');
+    }
+    function abrirModalNuevoHorario(){
+      const d={id:'new_'+Date.now(),dia:diaActual,horaEntrada:'08:00',horaSalida:'10:00',aula:'',edificio:'',materia:'',grupo:'A',curso:'1',docente:'',carrera:carrerasDisponibles[0]||'',programados:0,turno:'MAÑANA'}; llenarFormularioHorario(d,true);document.getElementById('modalHorario').classList.remove('hidden');document.getElementById('modalHorario').classList.add('flex');
+    }
+    function llenarFormularioHorario(d,nuevo){
+      document.getElementById('horarioModalTipo').textContent=nuevo?'Crear nuevo horario':'Editar registro';
+      ['Id','Dia','Entrada','Salida','Aula','Edificio','Materia','Grupo','Curso','Docente','Carrera','Programados'].forEach(k=>{const el=document.getElementById('h'+k);if(el)el.value=d[k.toLowerCase()]??d[k]??'';});
+      document.getElementById('hId').value=d.id;document.getElementById('hDia').value=d.dia;document.getElementById('hEntrada').value=d.horaEntrada;document.getElementById('hSalida').value=d.horaSalida;document.getElementById('hAula').value=d.aula;document.getElementById('hEdificio').value=d.edificio;document.getElementById('hMateria').value=d.materia;document.getElementById('hGrupo').value=d.grupo;document.getElementById('hCurso').value=d.curso;document.getElementById('hDocente').value=d.docente;document.getElementById('hCarrera').value=d.carrera;document.getElementById('hProgramados').value=d.programados;
+      document.getElementById('btnEliminarHorario').classList.toggle('hidden',nuevo || !String(d.id).startsWith('new_'));
+    }
+    function cerrarModalHorario(){const m=document.getElementById('modalHorario');m.classList.add('hidden');m.classList.remove('flex');}
+    async function guardarHorario(e){
+      e.preventDefault(); const id=document.getElementById('hId').value; const original=datosRaw.find(x=>x.id===id); const item={id,dia:document.getElementById('hDia').value,horaEntrada:document.getElementById('hEntrada').value,horaSalida:document.getElementById('hSalida').value,duracionHoras:calcularDuracion(document.getElementById('hEntrada').value,document.getElementById('hSalida').value),turno:calcularTurno(document.getElementById('hEntrada').value),aula:document.getElementById('hAula').value.trim(),edificio:document.getElementById('hEdificio').value.trim(),materia:document.getElementById('hMateria').value.trim(),grupo:document.getElementById('hGrupo').value.trim()||'A',curso:document.getElementById('hCurso').value.trim()||'1',docente:document.getElementById('hDocente').value.trim()||'Sin Docente',carrera:document.getElementById('hCarrera').value.trim(),programados:Number(document.getElementById('hProgramados').value)||0};
+      if(!window.db){registrosCustom[id]=item;reconstruirDatos();cerrarModalHorario();return;}
+      try{await window.setDoc(window.doc(window.db,'horarios_custom',id),{...item,_base:!!original,updatedAt:new Date().toISOString()});cerrarModalHorario();}catch(err){alert('No se pudo guardar. Revisa las reglas de Firestore.');}
+    }
+    async function eliminarHorarioActual(){
+      const id=document.getElementById('hId').value; if(!confirm('¿Eliminar este horario personalizado?'))return;
+      if(!window.db){delete registrosCustom[id];reconstruirDatos();cerrarModalHorario();return;}
+      try{if(String(id).startsWith('new_')) await window.deleteDoc(window.doc(window.db,'horarios_custom',id)); else await window.setDoc(window.doc(window.db,'horarios_custom',id),{id,_base:true,_deleted:true,updatedAt:new Date().toISOString()});cerrarModalHorario();}catch(e){alert('No se pudo eliminar el registro.');}
     }
 
     function cambiarTab(tab) {
-      ['dashboard','aulas','semestres','cursos','docentes','graficas'].forEach(t => {
-        const sec=document.getElementById(`sec-${t}`);
-        if (sec) sec.classList.add('hidden');
-        const btn=document.getElementById(`tab-${t}`);
-        if (btn) btn.className='py-3 px-3 text-slate-500 hover:text-slate-800 flex items-center gap-2 whitespace-nowrap';
-        const mob=document.querySelector(`[data-mobile-tab="${t}"]`);
-        if (mob) mob.classList.remove('tab-mobile-active');
+      ['aulas', 'cursos', 'docentes', 'graficas'].forEach(t => {
+        document.getElementById(`sec-${t}`).classList.add('hidden');
+        document.getElementById(`tab-${t}`).className = 'py-3 text-slate-500 hover:text-slate-800 flex items-center gap-2 whitespace-nowrap';
       });
-      const activeSec=document.getElementById(`sec-${tab}`);
-      if (activeSec) activeSec.classList.remove('hidden');
-      const activeBtn=document.getElementById(`tab-${tab}`);
-      if (activeBtn) activeBtn.className='tab-active py-3 px-3 flex items-center gap-2 whitespace-nowrap';
-      const mobile=document.querySelector(`[data-mobile-tab="${tab}"]`);
-      if (mobile) mobile.classList.add('tab-mobile-active');
-      if (tab==='graficas') renderizarGraficas(datosRaw.filter(d=>carrerasSeleccionadas.has(d.carrera)));
-      lucide.createIcons();
-      window.scrollTo({top:0,behavior:'smooth'});
+
+      document.getElementById(`sec-${tab}`).classList.remove('hidden');
+      document.getElementById(`tab-${tab}`).className = 'tab-active py-3 flex items-center gap-2 whitespace-nowrap';
     }
 
     function reiniciarProgreso() {
-      if (confirm('¿Deseas reiniciar la vista local de visitas y registros? Los registros de Firebase no se borrarán automáticamente.')) {
-        estadoVisitas = {};
-        estadoConteoReal = {};
-        actualizarTodo();
-      }
+      if (confirm('Esto solo limpiará la vista local. Para borrar visitas guardadas en Firestore se requiere hacerlo desde el registro. ¿Continuar?')) { estadoVisitas={}; estadoConteoReal={}; actualizarTodo(); }
     }
   </script>
 </body>
