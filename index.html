@@ -2,8 +2,8 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sistema de Gestión Académica y Control de Aulas</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Sistema de Gestión Académica y Aulas</title>
   
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -44,95 +44,106 @@
   </script>
 
   <style>
-    .tab-active { border-bottom: 3px solid #3b82f6; color: #1d4ed8; font-weight: 700; }
+    /* Estilos personalizados y colores de importancia */
+    body { -webkit-tap-highlight-color: transparent; }
+    .tab-active-desktop { border-bottom: 3px solid #3b82f6; color: #1d4ed8; font-weight: 700; }
+    .tab-active-mobile { color: #2563eb; }
+    .tab-inactive-mobile { color: #64748b; }
+    
     .card-critica { border-left: 6px solid #ef4444; background-color: #fef2f2; }
     .card-grande { border-left: 6px solid #f97316; background-color: #fff7ed; }
     .card-mediana { border-left: 6px solid #3b82f6; background-color: #eff6ff; }
     .card-pequena { border-left: 6px solid #10b981; background-color: #ecfdf5; }
-    .card-visited { opacity: 0.6; background-color: #f3f4f6 !important; border-left-color: #9ca3af !important; }
+    .card-visited { opacity: 0.65; background-color: #f3f4f6 !important; border-left-color: #9ca3af !important; }
+    
+    /* Scroll horizontal oculto para pestañas */
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   </style>
 </head>
-<body class="bg-slate-100 text-slate-800 font-sans antialiased min-h-screen">
+<body class="bg-slate-50 text-slate-800 font-sans antialiased min-h-screen pb-20 md:pb-6">
 
   <!-- ENCABEZADO PRINCIPAL -->
   <header class="bg-slate-900 text-white shadow-md sticky top-0 z-40">
-    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-col md:flex-row justify-between items-center gap-3">
-      <div class="flex items-center gap-3">
-        <div class="p-2 bg-blue-600 rounded-lg">
-          <i data-lucide="building-2" class="w-6 h-6 text-white"></i>
+    <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center gap-3">
+      <div class="flex items-center gap-3 overflow-hidden">
+        <div class="p-2 bg-blue-600 rounded-lg shrink-0">
+          <i data-lucide="building-2" class="w-5 h-5 text-white"></i>
         </div>
-        <div>
-          <h1 class="text-lg font-bold leading-tight">Control Académico y Recorrido de Aulas</h1>
-          <p class="text-xs text-slate-400" id="dbStatus">Conectando con base de datos...</p>
+        <div class="truncate">
+          <h1 class="text-sm md:text-lg font-bold leading-tight truncate">Control Académico</h1>
+          <p class="text-[10px] md:text-xs text-slate-400 flex items-center gap-1" id="dbStatus">
+            <i data-lucide="loader-2" class="w-3 h-3 animate-spin"></i> Conectando...
+          </p>
         </div>
       </div>
 
-      <div class="flex items-center gap-2">
-        <label for="excelUpload" class="bg-slate-800 hover:bg-slate-700 text-xs px-3 py-2 rounded-lg cursor-pointer transition border border-slate-700 flex items-center gap-2">
-          <i data-lucide="file-spreadsheet" class="w-4 h-4 text-emerald-400"></i> Cargar Excel
+      <div class="flex items-center gap-2 shrink-0">
+        <label for="excelUpload" class="bg-slate-800 hover:bg-slate-700 text-xs px-3 py-2 rounded-lg cursor-pointer transition border border-slate-700 flex items-center gap-2 shadow-sm">
+          <i data-lucide="file-spreadsheet" class="w-4 h-4 text-emerald-400"></i> <span class="hidden md:inline">Cargar Excel</span>
         </label>
         <input type="file" id="excelUpload" accept=".xlsx, .xls" class="hidden">
-        <button onclick="reiniciarProgreso()" class="bg-red-950 hover:bg-red-900 text-red-200 border border-red-800 text-xs px-3 py-2 rounded-lg transition flex items-center gap-1.5">
-          <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Reset
-        </button>
       </div>
     </div>
   </header>
 
-  <main class="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
+  <main class="max-w-7xl mx-auto p-4 space-y-5">
 
     <!-- SECCIÓN: SELECCIÓN MULTI-CARRERA -->
     <section class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 space-y-3">
       <div class="flex justify-between items-center">
         <h2 class="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
-          <i data-lucide="filter" class="w-4 h-4 text-blue-600"></i> Seleccionar Carrera(s)
+          <i data-lucide="filter" class="w-4 h-4 text-blue-600"></i> Filtrar Carreras
         </h2>
         <button onclick="toggleTodasCarreras()" class="text-xs text-blue-600 hover:underline font-semibold" id="btnToggleCarreras">
           Desmarcar Todas
         </button>
       </div>
       <div id="carrerasContainer" class="flex flex-wrap gap-2">
-        <span class="text-xs text-slate-400">Cargando lista de carreras...</span>
+        <span class="text-xs text-slate-400 italic">Cargando carreras...</span>
       </div>
     </section>
 
-    <!-- NAVEGACIÓN POR PESTAÑAS -->
-    <div class="border-b border-slate-200 flex gap-6 text-sm font-medium overflow-x-auto bg-white px-4 rounded-t-xl shadow-sm">
-      <button onclick="cambiarTab('aulas')" id="tab-aulas" class="tab-active py-3 flex items-center gap-2 whitespace-nowrap">
-        <i data-lucide="map-pin" class="w-4 h-4"></i> Recorrido de Aulas
+    <!-- NAVEGACIÓN DESKTOP (Oculta en móviles) -->
+    <div class="hidden md:flex border-b border-slate-200 gap-6 text-sm font-medium overflow-x-auto bg-white px-4 rounded-t-xl shadow-sm no-scrollbar">
+      <button onclick="cambiarTab('aulas')" id="dtab-aulas" class="tab-active-desktop py-3 flex items-center gap-2 whitespace-nowrap">
+        <i data-lucide="map-pin" class="w-4 h-4"></i> Aulas
       </button>
-      <button onclick="cambiarTab('cursos')" id="tab-cursos" class="py-3 text-slate-500 hover:text-slate-800 flex items-center gap-2 whitespace-nowrap">
-        <i data-lucide="layers" class="w-4 h-4"></i> Cursos, Materias y Grupos
+      <button onclick="cambiarTab('progreso')" id="dtab-progreso" class="py-3 text-slate-500 hover:text-slate-800 flex items-center gap-2 whitespace-nowrap">
+        <i data-lucide="pie-chart" class="w-4 h-4"></i> Progreso Semestral
       </button>
-      <button onclick="cambiarTab('docentes')" id="tab-docentes" class="py-3 text-slate-500 hover:text-slate-800 flex items-center gap-2 whitespace-nowrap">
-        <i data-lucide="users" class="w-4 h-4"></i> Reporte de Docentes
+      <button onclick="cambiarTab('cursos')" id="dtab-cursos" class="py-3 text-slate-500 hover:text-slate-800 flex items-center gap-2 whitespace-nowrap">
+        <i data-lucide="layers" class="w-4 h-4"></i> Materias
       </button>
-      <button onclick="cambiarTab('graficas')" id="tab-graficas" class="py-3 text-slate-500 hover:text-slate-800 flex items-center gap-2 whitespace-nowrap">
-        <i data-lucide="bar-chart-3" class="w-4 h-4"></i> Analítica y Gráficas
+      <button onclick="cambiarTab('docentes')" id="dtab-docentes" class="py-3 text-slate-500 hover:text-slate-800 flex items-center gap-2 whitespace-nowrap">
+        <i data-lucide="users" class="w-4 h-4"></i> Docentes
+      </button>
+      <button onclick="cambiarTab('graficas')" id="dtab-graficas" class="py-3 text-slate-500 hover:text-slate-800 flex items-center gap-2 whitespace-nowrap">
+        <i data-lucide="bar-chart-3" class="w-4 h-4"></i> Gráficas
       </button>
     </div>
 
     <!-- TARJETAS DE MÉTRICAS GLOBALES -->
-    <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
-      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-        <p class="text-xs text-slate-500 font-medium uppercase">Estudiantes Únicos</p>
-        <p class="text-2xl font-bold text-slate-900 mt-1" id="mTotalEstudiantes">0</p>
-        <p class="text-[10px] text-slate-400 mt-0.5">Sin duplicar por sesiones de clase</p>
+    <section class="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div class="bg-white p-3 md:p-4 rounded-xl shadow-sm border border-slate-200">
+        <p class="text-[10px] md:text-xs text-slate-500 font-bold uppercase truncate">Estudiantes Únicos</p>
+        <p class="text-xl md:text-2xl font-bold text-slate-900 mt-1" id="mTotalEstudiantes">0</p>
+        <p class="text-[9px] md:text-[10px] text-slate-400 mt-0.5">Desduplicados</p>
       </div>
-      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-        <p class="text-xs text-slate-500 font-medium uppercase">Estudiantes Contactados</p>
-        <p class="text-2xl font-bold text-emerald-600 mt-1" id="mTotalContactados">0</p>
-        <p class="text-[10px] text-emerald-600 font-medium mt-0.5" id="mPorcentajeContactados">0% alcanzado</p>
+      <div class="bg-white p-3 md:p-4 rounded-xl shadow-sm border border-slate-200">
+        <p class="text-[10px] md:text-xs text-slate-500 font-bold uppercase truncate">Contactados</p>
+        <p class="text-xl md:text-2xl font-bold text-emerald-600 mt-1" id="mTotalContactados">0</p>
+        <p class="text-[9px] md:text-[10px] text-emerald-600 font-bold mt-0.5" id="mPorcentajeContactados">0% cobertura</p>
       </div>
-      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-        <p class="text-xs text-slate-500 font-medium uppercase">Total Clases Programadas</p>
-        <p class="text-2xl font-bold text-slate-900 mt-1" id="mTotalAulas">0</p>
-        <p class="text-[10px] text-slate-400 mt-0.5">En toda la semana</p>
+      <div class="bg-white p-3 md:p-4 rounded-xl shadow-sm border border-slate-200">
+        <p class="text-[10px] md:text-xs text-slate-500 font-bold uppercase truncate">Total Clases</p>
+        <p class="text-xl md:text-2xl font-bold text-slate-900 mt-1" id="mTotalAulas">0</p>
+        <p class="text-[9px] md:text-[10px] text-slate-400 mt-0.5">Programadas hoy</p>
       </div>
-      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-        <p class="text-xs text-slate-500 font-medium uppercase">Aulas Visitadas</p>
-        <p class="text-2xl font-bold text-blue-600 mt-1" id="mAulasVisitadas">0</p>
-        <p class="text-[10px] text-blue-600 font-medium mt-0.5" id="mPorcentajeAulas">0% completado</p>
+      <div class="bg-white p-3 md:p-4 rounded-xl shadow-sm border border-slate-200">
+        <p class="text-[10px] md:text-xs text-slate-500 font-bold uppercase truncate">Aulas Visitadas</p>
+        <p class="text-xl md:text-2xl font-bold text-blue-600 mt-1" id="mAulasVisitadas">0</p>
+        <p class="text-[9px] md:text-[10px] text-blue-600 font-bold mt-0.5" id="mPorcentajeAulas">0% completado</p>
       </div>
     </section>
 
@@ -141,51 +152,49 @@
       <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 space-y-4">
         
         <!-- Pestañas de Días -->
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b pb-3">
-          <span class="text-xs font-bold text-slate-500 uppercase">Día de la semana:</span>
-          <div class="flex flex-wrap gap-1" id="diasTabs">
-            <button onclick="seleccionarDia('LUN')" class="tab-dia px-3 py-1.5 rounded-lg text-xs font-bold transition">LUN</button>
-            <button onclick="seleccionarDia('MAR')" class="tab-dia px-3 py-1.5 rounded-lg text-xs font-bold transition">MAR</button>
-            <button onclick="seleccionarDia('MIE')" class="tab-dia px-3 py-1.5 rounded-lg text-xs font-bold transition">MIÉ</button>
-            <button onclick="seleccionarDia('JUE')" class="tab-dia px-3 py-1.5 rounded-lg text-xs font-bold transition">JUE</button>
-            <button onclick="seleccionarDia('VIE')" class="tab-dia px-3 py-1.5 rounded-lg text-xs font-bold transition">VIE</button>
-            <button onclick="seleccionarDia('SAB')" class="tab-dia px-3 py-1.5 rounded-lg text-xs font-bold transition">SÁB</button>
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 border-b pb-3">
+          <span class="text-xs font-bold text-slate-500 uppercase flex items-center gap-1.5"><i data-lucide="calendar" class="w-4 h-4"></i> Día Activo</span>
+          <div class="flex gap-1 overflow-x-auto w-full md:w-auto pb-1 no-scrollbar" id="diasTabs">
+            <!-- Botones de días generados por JS -->
           </div>
         </div>
 
         <!-- Filtros secundarios -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 bg-slate-50 p-3 rounded-lg border border-slate-200">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-2 bg-slate-50 p-2 md:p-3 rounded-lg border border-slate-200">
+          <div class="col-span-2 md:col-span-1">
+            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Buscar</label>
+            <div class="relative">
+              <i data-lucide="search" class="w-3.5 h-3.5 absolute left-2 top-2 text-slate-400"></i>
+              <input type="text" id="fBusqueda" oninput="renderizarAulas()" placeholder="Docente, materia..." class="w-full text-xs border rounded pl-7 p-1.5 bg-white">
+            </div>
+          </div>
           <div>
             <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Turno</label>
             <select id="fTurno" onchange="renderizarAulas()" class="w-full text-xs border rounded p-1.5 bg-white">
-              <option value="TODOS">Todos los Turnos</option>
-              <option value="MAÑANA">Mañana (07:00 - 12:00)</option>
-              <option value="TARDE">Tarde (12:00 - 18:00)</option>
-              <option value="NOCHE">Noche (18:00 - 22:00)</option>
+              <option value="TODOS">Todos</option>
+              <option value="MAÑANA">Mañana</option>
+              <option value="TARDE">Tarde</option>
+              <option value="NOCHE">Noche</option>
             </select>
           </div>
           <div>
-            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Capacidad / Rango</label>
+            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Capacidad</label>
             <select id="fCapacidad" onchange="renderizarAulas()" class="w-full text-xs border rounded p-1.5 bg-white">
-              <option value="TODOS">Todas las Capacidades</option>
-              <option value="CRITICA">Masivas (>80 alumnos)</option>
-              <option value="GRANDE">Grandes (50 - 79 alumnos)</option>
-              <option value="MEDIANA">Medianas (20 - 49 alumnos)</option>
-              <option value="PEQUENA">Pequeñas (<20 alumnos)</option>
+              <option value="TODOS">Todas</option>
+              <option value="CRITICA">Crítica (>80)</option>
+              <option value="GRANDE">Grande (50-79)</option>
+              <option value="MEDIANA">Mediana (20-49)</option>
+              <option value="PEQUENA">Pequeña (<20)</option>
             </select>
           </div>
-          <div>
-            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Estado Visita</label>
-            <select id="fEstado" onchange="renderizarAulas()" class="w-full text-xs border rounded p-1.5 bg-white">
-              <option value="TODOS">Todos los Estados</option>
-              <option value="PENDIENTE">Solo Pendientes</option>
-              <option value="VISITADO">Solo Visitados</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Buscar</label>
-            <input type="text" id="fBusqueda" oninput="renderizarAulas()" placeholder="Aula, docente, materia..." class="w-full text-xs border rounded p-1.5 bg-white">
-          </div>
+        </div>
+
+        <!-- Leyenda de colores -->
+        <div class="flex flex-wrap gap-3 text-[10px] font-bold uppercase justify-center border-b pb-3">
+          <span class="flex items-center gap-1 text-red-600"><span class="w-2.5 h-2.5 rounded-full bg-red-500"></span> >80 Masiva</span>
+          <span class="flex items-center gap-1 text-orange-600"><span class="w-2.5 h-2.5 rounded-full bg-orange-500"></span> 50-79 Grande</span>
+          <span class="flex items-center gap-1 text-blue-600"><span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span> 20-49 Regular</span>
+          <span class="flex items-center gap-1 text-emerald-600"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> <20 Pequeña</span>
         </div>
 
         <!-- Grid de Aulas -->
@@ -195,11 +204,24 @@
       </div>
     </div>
 
-    <!-- PESTAÑA 2: ESTRUCTURA CURSOS -> MATERIAS -> GRUPOS -->
+    <!-- PESTAÑA 2: PROGRESO POR SEMESTRE -->
+    <div id="sec-progreso" class="hidden space-y-4">
+      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+        <div class="flex items-center gap-2 mb-4 border-b pb-3">
+          <i data-lucide="pie-chart" class="w-5 h-5 text-blue-600"></i>
+          <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider">Avance de Recorrido por Semestre / Curso</h3>
+        </div>
+        <div id="progresoContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Barras de progreso generadas dinámicamente -->
+        </div>
+      </div>
+    </div>
+
+    <!-- PESTAÑA 3: ESTRUCTURA CURSOS -> MATERIAS -> GRUPOS -->
     <div id="sec-cursos" class="hidden space-y-4">
       <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-        <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4 border-b pb-2">
-          Mapeo de Cursos, Materias y Grupos
+        <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4 border-b pb-2 flex items-center gap-2">
+          <i data-lucide="layers" class="w-5 h-5 text-blue-600"></i> Mapeo Académico
         </h3>
         <div id="treeCursosContainer" class="space-y-3">
           <!-- Acordeón renderizado dinámicamente -->
@@ -207,28 +229,31 @@
       </div>
     </div>
 
-    <!-- PESTAÑA 3: REPORTES DE DOCENTES -->
+    <!-- PESTAÑA 4: REPORTES DE DOCENTES -->
     <div id="sec-docentes" class="hidden space-y-4">
       <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 border-b pb-3">
-          <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider">
-            Listado de Docentes y Carga Horaria
+          <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+             <i data-lucide="users" class="w-5 h-5 text-blue-600"></i> Plantel Docente
           </h3>
-          <input type="text" id="bDocente" oninput="renderizarDocentes()" placeholder="Buscar docente o materia..." class="text-xs border rounded px-3 py-1.5 w-full sm:w-64 bg-white">
+          <div class="relative w-full sm:w-64">
+            <i data-lucide="search" class="w-4 h-4 absolute left-2.5 top-2 text-slate-400"></i>
+            <input type="text" id="bDocente" oninput="renderizarDocentes()" placeholder="Buscar docente..." class="text-xs border rounded pl-8 py-1.5 w-full bg-white shadow-sm">
+          </div>
         </div>
-        <div class="overflow-x-auto">
-          <table class="w-full text-left border-collapse text-xs">
+        <div class="overflow-x-auto rounded-lg border border-slate-200">
+          <table class="w-full text-left border-collapse text-xs whitespace-nowrap">
             <thead>
-              <tr class="bg-slate-100 border-b border-slate-200 text-slate-600 font-bold uppercase">
+              <tr class="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase">
                 <th class="p-3">Docente</th>
-                <th class="p-3">Materias / Grupos</th>
-                <th class="p-3 text-center">Horas Semanales</th>
-                <th class="p-3 text-center">Horas Mensuales (x4)</th>
-                <th class="p-3 text-center">Estudiantes Únicos</th>
-                <th class="p-3 text-right">Acción</th>
+                <th class="p-3">Materias</th>
+                <th class="p-3 text-center">Hrs Semanal</th>
+                <th class="p-3 text-center">Hrs Mensual</th>
+                <th class="p-3 text-center">Alumnos</th>
+                <th class="p-3 text-right">Detalle</th>
               </tr>
             </thead>
-            <tbody id="tablaDocentesBody" class="divide-y divide-slate-200">
+            <tbody id="tablaDocentesBody" class="divide-y divide-slate-100 bg-white">
               <!-- Filas de docentes -->
             </tbody>
           </table>
@@ -236,47 +261,75 @@
       </div>
     </div>
 
-    <!-- PESTAÑA 4: GRÁFICAS -->
-    <div id="sec-graficas" class="hidden space-y-6">
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <!-- PESTAÑA 5: GRÁFICAS -->
+    <div id="sec-graficas" class="hidden space-y-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-          <h4 class="text-xs font-bold text-slate-600 uppercase mb-3">Top 10 Docentes con Más Estudiantes</h4>
+          <h4 class="text-xs font-bold text-slate-600 uppercase mb-3 flex items-center gap-2"><i data-lucide="bar-chart-2" class="w-4 h-4"></i> Cobertura por Semestre (%)</h4>
+          <canvas id="chartCoberturaSemestre" class="max-h-64"></canvas>
+        </div>
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+          <h4 class="text-xs font-bold text-slate-600 uppercase mb-3 flex items-center gap-2"><i data-lucide="users" class="w-4 h-4"></i> Top Docentes (Alumnos)</h4>
           <canvas id="chartDocentesEstudiantes" class="max-h-64"></canvas>
         </div>
-        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-          <h4 class="text-xs font-bold text-slate-600 uppercase mb-3">Top 10 Docentes por Carga Horaria Mensual</h4>
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 md:col-span-2">
+          <h4 class="text-xs font-bold text-slate-600 uppercase mb-3 flex items-center gap-2"><i data-lucide="clock" class="w-4 h-4"></i> Top Carga Horaria Mensual</h4>
           <canvas id="chartDocentesHoras" class="max-h-64"></canvas>
-        </div>
-        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-          <h4 class="text-xs font-bold text-slate-600 uppercase mb-3">Distribución de Estudiantes por Curso</h4>
-          <canvas id="chartEstudiantesCurso" class="max-h-64"></canvas>
-        </div>
-        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-          <h4 class="text-xs font-bold text-slate-600 uppercase mb-3">Distribución de Clases por Turno</h4>
-          <canvas id="chartTurnos" class="max-h-64"></canvas>
         </div>
       </div>
     </div>
 
   </main>
 
+  <!-- NAVEGACIÓN MOBILE (Fija en la parte inferior) -->
+  <nav class="md:hidden fixed bottom-0 w-full bg-white border-t border-slate-200 shadow-[0_-4px_6px_-1px_rgb(0,0,0,0.05)] z-50 flex justify-around items-center pb-safe">
+    <button onclick="cambiarTab('aulas')" id="mtab-aulas" class="tab-active-mobile flex flex-col items-center gap-1 py-3 px-2 w-full transition">
+      <i data-lucide="map-pin" class="w-5 h-5"></i>
+      <span class="text-[9px] font-bold uppercase tracking-wider">Aulas</span>
+    </button>
+    <button onclick="cambiarTab('progreso')" id="mtab-progreso" class="tab-inactive-mobile flex flex-col items-center gap-1 py-3 px-2 w-full transition">
+      <i data-lucide="pie-chart" class="w-5 h-5"></i>
+      <span class="text-[9px] font-bold uppercase tracking-wider">Avance</span>
+    </button>
+    <button onclick="cambiarTab('cursos')" id="mtab-cursos" class="tab-inactive-mobile flex flex-col items-center gap-1 py-3 px-2 w-full transition">
+      <i data-lucide="layers" class="w-5 h-5"></i>
+      <span class="text-[9px] font-bold uppercase tracking-wider">Cursos</span>
+    </button>
+    <button onclick="cambiarTab('docentes')" id="mtab-docentes" class="tab-inactive-mobile flex flex-col items-center gap-1 py-3 px-2 w-full transition">
+      <i data-lucide="users" class="w-5 h-5"></i>
+      <span class="text-[9px] font-bold uppercase tracking-wider">Docentes</span>
+    </button>
+    <button onclick="cambiarTab('graficas')" id="mtab-graficas" class="tab-inactive-mobile flex flex-col items-center gap-1 py-3 px-2 w-full transition">
+      <i data-lucide="bar-chart-3" class="w-5 h-5"></i>
+      <span class="text-[9px] font-bold uppercase tracking-wider">Datos</span>
+    </button>
+  </nav>
+
   <!-- MODAL FICHA DE DOCENTE -->
-  <div id="modalDocente" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-      <div class="p-4 bg-slate-900 text-white flex justify-between items-center">
-        <div>
-          <h3 class="text-base font-bold" id="mDocenteNombre">Nombre Docente</h3>
-          <p class="text-xs text-slate-400" id="mDocenteResumen">Resumen de carga lectiva</p>
+  <div id="modalDocente" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-end md:items-center justify-center p-0 md:p-4 z-50 transition-opacity">
+    <div class="bg-white w-full md:max-w-2xl md:rounded-xl shadow-2xl flex flex-col max-h-[85vh] md:max-h-[90vh] rounded-t-2xl animate-[slideUp_0.3s_ease-out]">
+      <div class="p-4 bg-slate-900 text-white flex justify-between items-start md:rounded-t-xl rounded-t-2xl">
+        <div class="pr-4">
+          <h3 class="text-lg font-bold leading-tight" id="mDocenteNombre">Nombre</h3>
+          <div class="flex flex-wrap gap-2 mt-2" id="mDocenteBadges"></div>
         </div>
-        <button onclick="cerrarModalDocente()" class="text-slate-400 hover:text-white">
+        <button onclick="cerrarModalDocente()" class="text-slate-400 hover:text-white bg-slate-800 rounded-full p-1.5 shrink-0">
           <i data-lucide="x" class="w-5 h-5"></i>
         </button>
       </div>
-      <div class="p-4 overflow-y-auto space-y-4 text-xs" id="mDocenteContenido">
-        <!-- Detalle de materias y clases -->
+      <div class="p-4 overflow-y-auto space-y-3 text-xs bg-slate-50 flex-1" id="mDocenteContenido">
+        <!-- Detalle inyectado por JS -->
       </div>
     </div>
   </div>
+
+  <style>
+    @keyframes slideUp {
+      from { transform: translateY(100%); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+  </style>
 
   <!-- LÓGICA JAVASCRIPT -->
   <script>
@@ -286,7 +339,6 @@
     let diaActual = 'LUN';
     let estadoVisitas = {};
     let estadoConteoReal = {};
-
     let charts = {};
 
     window.addEventListener('DOMContentLoaded', () => {
@@ -297,17 +349,36 @@
     });
 
     function inicializarDias() {
-      const dias = ['DOM', 'LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB'];
-      const hoy = dias[new Date().getDay()];
+      const diasMap = ['DOM', 'LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB'];
+      const hoy = diasMap[new Date().getDay()];
       diaActual = (hoy === 'DOM' || hoy === 'SAB') ? 'LUN' : hoy;
       renderizarTabsDias();
+    }
+
+    function renderizarTabsDias() {
+      const container = document.getElementById('diasTabs');
+      const dias = ['LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB'];
+      container.innerHTML = '';
+      
+      dias.forEach(d => {
+        const btn = document.createElement('button');
+        const isActive = d === diaActual;
+        btn.className = `px-4 py-2 rounded-lg text-xs font-bold transition flex-1 md:flex-none text-center whitespace-nowrap ${
+          isActive ? 'bg-blue-600 text-white shadow-md' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+        }`;
+        btn.innerText = d;
+        btn.onclick = () => { diaActual = d; renderizarTabsDias(); renderizarAulas(); };
+        container.appendChild(btn);
+      });
     }
 
     function conectarFirebase() {
       const checkDB = setInterval(() => {
         if (window.db) {
           clearInterval(checkDB);
-          document.getElementById('dbStatus').innerText = 'Sincronizado con Firebase Firestore';
+          const statusEl = document.getElementById('dbStatus');
+          statusEl.innerHTML = '<i data-lucide="check-circle-2" class="w-3 h-3 text-emerald-400"></i> Sincronizado';
+          lucide.createIcons();
           
           window.onSnapshot(window.collection(window.db, "visitas_aulas"), (snapshot) => {
             snapshot.docChanges().forEach((change) => {
@@ -324,17 +395,18 @@
             actualizarTodo();
           });
         }
-      }, 300);
+      }, 500);
     }
 
     async function cargarExcelPorDefecto() {
       try {
         const response = await fetch('torres.xlsx');
-        if (!response.ok) throw new Error('No se encontró torres.xlsx');
+        if (!response.ok) throw new Error('Archivo no encontrado');
         const buffer = await response.arrayBuffer();
         procesarExcelBuffer(buffer);
       } catch (err) {
-        document.getElementById('dbStatus').innerText = 'Por favor carga el archivo torres.xlsx manualmente';
+        document.getElementById('dbStatus').innerHTML = '<i data-lucide="alert-circle" class="w-3 h-3 text-amber-400"></i> Falta archivo Excel';
+        lucide.createIcons();
       }
     }
 
@@ -369,9 +441,9 @@
         else if (diaRaw.includes('VIE')) diaNorm = 'VIE';
         else if (diaRaw.includes('SAB') || diaRaw.includes('SÁB')) diaNorm = 'SAB';
 
-        const hEntrada = String(getVal(['Hora Entrada', 'HoraEntrada'])).trim();
-        const hSalida = String(getVal(['Hora Salida', 'HoraSalida'])).trim();
-        const programados = parseInt(getVal(['Nro de programados', 'Programados'])) || 0;
+        const hEntrada = String(getVal(['Hora Entrada', 'HoraEntrada', 'Inicio'])).trim();
+        const hSalida = String(getVal(['Hora Salida', 'HoraSalida', 'Fin'])).trim();
+        const programados = parseInt(getVal(['Nro de programados', 'Programados', 'Alumnos'])) || 0;
 
         return {
           id: `row_${index}`,
@@ -381,12 +453,12 @@
           duracionHoras: calcularDuracion(hEntrada, hSalida),
           turno: calcularTurno(hEntrada),
           aula: String(getVal(['Aula'])).trim(),
-          edificio: String(getVal(['Edificio'])).trim(),
-          materia: String(getVal(['Materia'])).trim(),
-          grupo: String(getVal(['Grupo'])).trim() || 'A',
-          curso: String(getVal(['Curso'])).trim() || '1',
-          docente: String(getVal(['Docente'])).trim() || 'Sin Docente',
-          carrera: String(getVal(['Carrera'])).trim(),
+          edificio: String(getVal(['Edificio', 'Bloque'])).trim(),
+          materia: String(getVal(['Materia', 'Asignatura'])).trim(),
+          grupo: String(getVal(['Grupo', 'Paralelo'])).trim() || 'A',
+          curso: String(getVal(['Curso', 'Semestre'])).trim() || '1',
+          docente: String(getVal(['Docente', 'Profesor'])).trim() || 'Sin Docente',
+          carrera: String(getVal(['Carrera', 'Programa'])).trim(),
           programados: programados
         };
       });
@@ -408,9 +480,9 @@
       return diff > 0 ? diff : 2;
     }
 
-    function calcularTurno(horaStr) {
-      if (!horaStr) return 'MAÑANA';
-      const h = parseInt(horaStr.split(':')[0]) || 7;
+    function calcularTurno(hora) {
+      if (!hora) return 'MAÑANA';
+      const h = parseInt(hora.split(':')[0]) || 7;
       if (h < 12) return 'MAÑANA';
       if (h < 18) return 'TARDE';
       return 'NOCHE';
@@ -419,430 +491,390 @@
     function renderizarFiltroCarreras() {
       const container = document.getElementById('carrerasContainer');
       container.innerHTML = '';
-
       carrerasDisponibles.forEach(carrera => {
-        const active = carrerasSeleccionadas.has(carrera);
+        const act = carrerasSeleccionadas.has(carrera);
         const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = `px-3 py-1.5 rounded-full text-xs font-semibold border transition flex items-center gap-1.5 ${
-          active 
-            ? 'bg-blue-600 text-white border-blue-600 shadow-sm' 
-            : 'bg-slate-100 text-slate-600 border-slate-300 hover:bg-slate-200'
+        btn.className = `px-3 py-1.5 rounded-full text-[10px] md:text-xs font-bold border transition flex items-center gap-1.5 ${
+          act ? 'bg-slate-800 text-white border-slate-800 shadow-sm' : 'bg-slate-100 text-slate-600 border-slate-300'
         }`;
-        btn.innerHTML = `${active ? '✔' : ''} ${carrera}`;
+        btn.innerHTML = `<i data-lucide="${act ? 'check-circle-2' : 'circle'}" class="w-3.5 h-3.5"></i> ${carrera}`;
         btn.onclick = () => {
-          if (carrerasSeleccionadas.has(carrera)) carrerasSeleccionadas.delete(carrera);
-          else carrerasSeleccionadas.add(carrera);
+          act ? carrerasSeleccionadas.delete(carrera) : carrerasSeleccionadas.add(carrera);
           renderizarFiltroCarreras();
           actualizarTodo();
         };
         container.appendChild(btn);
       });
+      lucide.createIcons();
     }
 
     function toggleTodasCarreras() {
       if (carrerasSeleccionadas.size === carrerasDisponibles.length) {
         carrerasSeleccionadas.clear();
-        document.getElementById('btnToggleCarreras').innerText = 'Seleccionar Todas';
       } else {
         carrerasSeleccionadas = new Set(carrerasDisponibles);
-        document.getElementById('btnToggleCarreras').innerText = 'Desmarcar Todas';
       }
       renderizarFiltroCarreras();
       actualizarTodo();
     }
 
     function actualizarTodo() {
-      const datosFiltrados = datosRaw.filter(d => carrerasSeleccionadas.has(d.carrera));
-
-      calcularMetricas(datosFiltrados);
+      const filtrados = datosRaw.filter(d => carrerasSeleccionadas.has(d.carrera));
+      
+      calcularMetricas(filtrados);
       renderizarAulas();
-      renderizarCursosArbol(datosFiltrados);
-      renderizarDocentes();
-      renderizarGraficas(datosFiltrados);
+      renderizarCursosArbol(filtrados);
+      renderizarDocentes(filtrados);
+      renderizarProgresoSemestral(filtrados);
+      renderizarGraficas(filtrados);
+      
       lucide.createIcons();
     }
 
     function calcularMetricas(datos) {
-      // Estudiantes Únicos (sin duplicar días)
       const gruposMap = new Map();
       datos.forEach(d => {
-        const key = `${d.carrera}_${d.curso}_${d.materia}_${d.grupo}`;
-        if (!gruposMap.has(key) || gruposMap.get(key) < d.programados) {
-          gruposMap.set(key, d.programados);
-        }
+        const k = `${d.carrera}_${d.curso}_${d.materia}_${d.grupo}`;
+        if (!gruposMap.has(k) || gruposMap.get(k) < d.programados) gruposMap.set(k, d.programados);
       });
 
-      let totalEstudiantes = 0;
-      gruposMap.forEach(v => totalEstudiantes += v);
+      let totEst = 0; gruposMap.forEach(v => totEst += v);
+      let totCont = 0, visitados = 0;
 
-      let totalContactados = 0;
-      let visitadasCount = 0;
-
+      // Las métricas de aulas totales y visitadas se basan en el DIA ACTUAL para ser más relevantes operativamente, 
+      // o pueden ser globales. Lo haremos global para coincidir con la vista completa de progreso.
       datos.forEach(d => {
         if (estadoVisitas[d.id]) {
-          visitadasCount++;
-          totalContactados += (estadoConteoReal[d.id] !== undefined ? estadoConteoReal[d.id] : d.programados);
+          visitados++;
+          totCont += (estadoConteoReal[d.id] !== undefined ? estadoConteoReal[d.id] : d.programados);
         }
       });
 
-      document.getElementById('mTotalEstudiantes').innerText = totalEstudiantes.toLocaleString();
-      document.getElementById('mTotalContactados').innerText = totalContactados.toLocaleString();
-      
-      const pCont = totalEstudiantes > 0 ? Math.round((totalContactados / totalEstudiantes) * 100) : 0;
-      document.getElementById('mPorcentajeContactados').innerText = `${pCont}% cobertura real`;
-
+      document.getElementById('mTotalEstudiantes').innerText = totEst.toLocaleString();
+      document.getElementById('mTotalContactados').innerText = totCont.toLocaleString();
+      document.getElementById('mPorcentajeContactados').innerText = totEst > 0 ? `${Math.round((totCont/totEst)*100)}% alcanzado` : '0%';
       document.getElementById('mTotalAulas').innerText = datos.length.toLocaleString();
-      document.getElementById('mAulasVisitadas').innerText = visitadasCount.toLocaleString();
-
-      const pAulas = datos.length > 0 ? Math.round((visitadasCount / datos.length) * 100) : 0;
-      document.getElementById('mPorcentajeAulas').innerText = `${pAulas}% completado`;
-    }
-
-    function renderizarTabsDias() {
-      document.querySelectorAll('.tab-dia').forEach(btn => {
-        const d = btn.innerText.replace('É', 'E');
-        if (d === diaActual) {
-          btn.className = 'tab-dia px-3 py-1.5 rounded-lg text-xs font-bold transition bg-blue-600 text-white shadow';
-        } else {
-          btn.className = 'tab-dia px-3 py-1.5 rounded-lg text-xs font-bold transition bg-slate-100 text-slate-600 hover:bg-slate-200';
-        }
-      });
-    }
-
-    function seleccionarDia(d) {
-      diaActual = d;
-      renderizarTabsDias();
-      renderizarAulas();
+      document.getElementById('mAulasVisitadas').innerText = visitados.toLocaleString();
+      document.getElementById('mPorcentajeAulas').innerText = datos.length > 0 ? `${Math.round((visitados/datos.length)*100)}% completado` : '0%';
     }
 
     function renderizarAulas() {
-      const container = document.getElementById('gridAulas');
-      container.innerHTML = '';
+      const cont = document.getElementById('gridAulas');
+      cont.innerHTML = '';
 
-      const tSel = document.getElementById('fTurno').value;
-      const cSel = document.getElementById('fCapacidad').value;
-      const eSel = document.getElementById('fEstado').value;
-      const bSel = document.getElementById('fBusqueda').value.toLowerCase();
+      const t = document.getElementById('fTurno').value;
+      const c = document.getElementById('fCapacidad').value;
+      const q = document.getElementById('fBusqueda').value.toLowerCase();
 
       let list = datosRaw.filter(d => carrerasSeleccionadas.has(d.carrera) && d.dia === diaActual);
 
-      if (tSel !== 'TODOS') list = list.filter(d => d.turno === tSel);
-      if (eSel === 'PENDIENTE') list = list.filter(d => !estadoVisitas[d.id]);
-      if (eSel === 'VISITADO') list = list.filter(d => estadoVisitas[d.id]);
-
-      if (cSel !== 'TODOS') {
+      if (t !== 'TODOS') list = list.filter(d => d.turno === t);
+      if (c !== 'TODOS') {
         list = list.filter(d => {
-          if (cSel === 'CRITICA') return d.programados >= 80;
-          if (cSel === 'GRANDE') return d.programados >= 50 && d.programados < 80;
-          if (cSel === 'MEDIANA') return d.programados >= 20 && d.programados < 50;
-          if (cSel === 'PEQUENA') return d.programados < 20;
+          if (c === 'CRITICA') return d.programados >= 80;
+          if (c === 'GRANDE') return d.programados >= 50 && d.programados < 80;
+          if (c === 'MEDIANA') return d.programados >= 20 && d.programados < 50;
+          if (c === 'PEQUENA') return d.programados < 20;
           return true;
         });
       }
+      if (q) list = list.filter(d => d.aula.toLowerCase().includes(q) || d.materia.toLowerCase().includes(q) || d.docente.toLowerCase().includes(q));
 
-      if (bSel) {
-        list = list.filter(d => 
-          d.aula.toLowerCase().includes(bSel) ||
-          d.materia.toLowerCase().includes(bSel) ||
-          d.docente.toLowerCase().includes(bSel)
-        );
-      }
-
-      list.sort((a, b) => a.horaEntrada.localeCompare(b.horaEntrada) || a.aula.localeCompare(b.aula));
+      list.sort((a, b) => a.horaEntrada.localeCompare(b.horaEntrada));
 
       if (list.length === 0) {
-        container.innerHTML = `
-          <div class="col-span-full py-12 text-center text-slate-400">
-            <p class="text-xs">No hay aulas programadas para este filtro.</p>
-          </div>
-        `;
+        cont.innerHTML = `<div class="col-span-full py-10 text-center text-slate-400 flex flex-col items-center"><i data-lucide="inbox" class="w-10 h-10 mb-2 opacity-50"></i><p class="text-xs">No hay clases programadas para estos filtros.</p></div>`;
         return;
       }
 
       list.forEach(item => {
-        const esVisitado = !!estadoVisitas[item.id];
-        const conteoActual = estadoConteoReal[item.id] !== undefined ? estadoConteoReal[item.id] : item.programados;
+        const visitado = !!estadoVisitas[item.id];
+        const conteo = estadoConteoReal[item.id] !== undefined ? estadoConteoReal[item.id] : item.programados;
 
-        let claseEstilo = 'card-mediana';
-        if (item.programados >= 80) claseEstilo = 'card-critica';
-        else if (item.programados >= 50) claseEstilo = 'card-grande';
-        else if (item.programados < 20) claseEstilo = 'card-pequena';
+        let style = 'card-mediana';
+        let icon = 'users';
+        if (item.programados >= 80) { style = 'card-critica'; icon = 'alert-triangle'; }
+        else if (item.programados >= 50) { style = 'card-grande'; icon = 'users'; }
+        else if (item.programados < 20) { style = 'card-pequena'; icon = 'user'; }
 
         const card = document.createElement('div');
-        card.className = `p-4 rounded-xl shadow-sm transition space-y-3 relative ${claseEstilo} ${esVisitado ? 'card-visited' : ''}`;
+        card.className = `p-4 rounded-xl shadow-sm transition space-y-3 relative ${style} ${visitado ? 'card-visited' : ''}`;
 
         card.innerHTML = `
-          <div class="flex justify-between items-start gap-2">
+          <div class="flex justify-between items-start">
             <div>
-              <span class="text-[11px] font-bold text-slate-700 bg-white/80 px-2 py-0.5 rounded border">
-                ${item.horaEntrada} - ${item.horaSalida}
+              <span class="inline-flex items-center gap-1 text-[10px] font-bold text-slate-700 bg-white/90 px-2 py-0.5 rounded border shadow-sm">
+                <i data-lucide="clock" class="w-3 h-3"></i> ${item.horaEntrada} - ${item.horaSalida}
               </span>
-              <h4 class="text-base font-bold text-slate-900 mt-1">Aula: ${item.aula || 'S/A'}</h4>
-              <p class="text-[10px] text-slate-500">${item.edificio}</p>
+              <h4 class="text-sm md:text-base font-bold text-slate-900 mt-2 flex items-center gap-1.5">
+                <i data-lucide="door-open" class="w-4 h-4 text-slate-500"></i> ${item.aula || 'S/A'}
+              </h4>
+              <p class="text-[10px] text-slate-500 ml-5.5">${item.edificio}</p>
             </div>
-            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${esVisitado ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-700'}">
-              ${esVisitado ? '✔ Visitado' : 'Pendiente'}
+            <span class="text-[9px] font-bold px-2 py-1 rounded flex items-center gap-1 uppercase ${visitado ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-600'}">
+              <i data-lucide="${visitado ? 'check-circle-2' : 'clock-3'}" class="w-3 h-3"></i> ${visitado ? 'Visitado' : 'Pendiente'}
             </span>
           </div>
 
           <div class="border-t border-slate-200/60 pt-2 space-y-1">
-            <p class="text-xs font-bold text-slate-800">${item.materia} <span class="text-blue-600">(Grp ${item.grupo})</span></p>
-            <p class="text-xs text-slate-600 cursor-pointer hover:underline" onclick="abrirModalDocente('${item.docente}')">
-              👤 ${item.docente}
+            <p class="text-[11px] md:text-xs font-bold text-slate-800 leading-tight">${item.materia} <span class="text-blue-600 ml-1">(Grp ${item.grupo})</span></p>
+            <p class="text-[10px] md:text-xs text-slate-600 cursor-pointer hover:text-blue-600 flex items-center gap-1" onclick="abrirModalDocente('${item.docente}')">
+              <i data-lucide="user-check" class="w-3.5 h-3.5"></i> ${item.docente}
             </p>
-            <p class="text-[10px] text-slate-500">${item.carrera} - ${item.curso}º Curso</p>
+            <p class="text-[9px] text-slate-500 flex items-center gap-1"><i data-lucide="graduation-cap" class="w-3 h-3"></i> ${item.carrera} - Semestre/Curso ${item.curso}</p>
           </div>
 
-          <div class="bg-white/90 p-2 rounded-lg border border-slate-200 flex justify-between items-center">
+          <div class="bg-white/90 p-2.5 rounded-lg border border-slate-200 flex justify-between items-center shadow-sm">
             <div>
-              <span class="text-[9px] font-bold text-slate-400 block uppercase">Alumnos Presentes</span>
-              <span class="text-xs text-slate-600">Prog: <strong>${item.programados}</strong></span>
+              <span class="text-[8px] font-bold text-slate-400 block uppercase">Estudiantes</span>
+              <span class="text-[11px] font-bold text-slate-700 flex items-center gap-1"><i data-lucide="${icon}" class="w-3 h-3"></i> Prog: ${item.programados}</span>
             </div>
-            <div class="flex items-center gap-1.5">
-              <button onclick="modificarConteo('${item.id}', -1)" class="w-6 h-6 rounded bg-slate-200 hover:bg-slate-300 font-bold text-slate-700 text-xs flex items-center justify-center">-</button>
-              <span class="text-xs font-bold text-slate-900 w-6 text-center">${conteoActual}</span>
-              <button onclick="modificarConteo('${item.id}', 1)" class="w-6 h-6 rounded bg-slate-200 hover:bg-slate-300 font-bold text-slate-700 text-xs flex items-center justify-center">+</button>
+            <div class="flex items-center gap-2">
+              <button onclick="modificarConteo('${item.id}', -5)" class="w-7 h-7 rounded bg-slate-100 border border-slate-200 hover:bg-slate-200 font-bold text-slate-700 text-xs flex items-center justify-center transition active:scale-95">-5</button>
+              <button onclick="modificarConteo('${item.id}', -1)" class="w-8 h-8 rounded bg-slate-200 border border-slate-300 hover:bg-slate-300 font-bold text-slate-800 text-base flex items-center justify-center transition active:scale-95">-</button>
+              <span class="text-sm font-black text-slate-900 w-8 text-center">${conteo}</span>
+              <button onclick="modificarConteo('${item.id}', 1)" class="w-8 h-8 rounded bg-slate-200 border border-slate-300 hover:bg-slate-300 font-bold text-slate-800 text-base flex items-center justify-center transition active:scale-95">+</button>
             </div>
           </div>
 
-          <button onclick="toggleVisita('${item.id}')" class="w-full py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 ${
-            esVisitado 
-              ? 'bg-red-100 hover:bg-red-200 text-red-700 border border-red-300' 
-              : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm'
+          <button onclick="toggleVisita('${item.id}')" class="w-full py-2.5 px-3 rounded-lg text-xs md:text-sm font-bold transition flex items-center justify-center gap-2 active:scale-[0.98] ${
+            visitado 
+              ? 'bg-red-50 hover:bg-red-100 text-red-600 border border-red-200' 
+              : 'bg-slate-900 hover:bg-slate-800 text-white shadow-md'
           }">
-            ${esVisitado ? '✖ Desmarcar / Eliminar Registro' : '✔ Marcar Aula Visitada'}
+            <i data-lucide="${visitado ? 'x-circle' : 'check-circle'}" class="w-4 h-4"></i>
+            ${visitado ? 'Anular Registro' : 'Marcar Aula Visitada'}
           </button>
         `;
+        cont.appendChild(card);
+      });
+    }
 
-        container.appendChild(card);
+    function renderizarProgresoSemestral(datos) {
+      const cont = document.getElementById('progresoContainer');
+      cont.innerHTML = '';
+      
+      const stats = {};
+      datos.forEach(d => {
+        if (!stats[d.curso]) stats[d.curso] = { total: 0, visitado: 0 };
+        stats[d.curso].total++;
+        if (estadoVisitas[d.id]) stats[d.curso].visitado++;
+      });
+
+      Object.keys(stats).sort((a,b) => String(a).localeCompare(String(b), undefined, {numeric: true})).forEach(curso => {
+        const d = stats[curso];
+        const perc = d.total > 0 ? Math.round((d.visitado / d.total) * 100) : 0;
+        
+        let color = 'bg-blue-500';
+        let bgStyle = 'bg-blue-50';
+        let textStyle = 'text-blue-700';
+        if (perc === 100) { color = 'bg-emerald-500'; bgStyle = 'bg-emerald-50'; textStyle = 'text-emerald-700'; }
+        else if (perc < 30) { color = 'bg-red-500'; bgStyle = 'bg-red-50'; textStyle = 'text-red-700'; }
+        else if (perc < 70) { color = 'bg-orange-500'; bgStyle = 'bg-orange-50'; textStyle = 'text-orange-700'; }
+
+        cont.innerHTML += `
+          <div class="p-4 rounded-xl border border-slate-200 ${bgStyle}">
+            <div class="flex justify-between items-end mb-2">
+              <div>
+                <span class="text-[10px] font-bold uppercase text-slate-500">Semestre / Curso</span>
+                <h4 class="text-base font-black ${textStyle}">${curso}</h4>
+              </div>
+              <div class="text-right">
+                <span class="text-xl font-bold ${textStyle}">${perc}%</span>
+                <p class="text-[9px] text-slate-500 uppercase font-bold">${d.visitado} de ${d.total} aulas</p>
+              </div>
+            </div>
+            <div class="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
+              <div class="${color} h-2.5 rounded-full transition-all duration-500" style="width: ${perc}%"></div>
+            </div>
+          </div>
+        `;
       });
     }
 
     function renderizarCursosArbol(datos) {
-      const container = document.getElementById('treeCursosContainer');
-      container.innerHTML = '';
+      const cont = document.getElementById('treeCursosContainer');
+      cont.innerHTML = '';
 
-      const cursosMap = {};
+      const tree = {};
       datos.forEach(d => {
-        if (!cursosMap[d.curso]) cursosMap[d.curso] = {};
-        if (!cursosMap[d.curso][d.materia]) cursosMap[d.curso][d.materia] = {};
-        if (!cursosMap[d.curso][d.materia][d.grupo]) {
-          cursosMap[d.curso][d.materia][d.grupo] = {
-            docente: d.docente,
-            programados: d.programados,
-            sesiones: []
-          };
-        }
-        cursosMap[d.curso][d.materia][d.grupo].sesiones.push(`${d.dia} ${d.horaEntrada}-${d.horaSalida} (Aula ${d.aula})`);
+        if (!tree[d.curso]) tree[d.curso] = {};
+        if (!tree[d.curso][d.materia]) tree[d.curso][d.materia] = {};
+        if (!tree[d.curso][d.materia][d.grupo]) tree[d.curso][d.materia][d.grupo] = { prof: d.docente, prog: d.programados, ses: [] };
+        tree[d.curso][d.materia][d.grupo].ses.push(`${d.dia} ${d.horaEntrada} (${d.aula})`);
       });
 
-      Object.keys(cursosMap).sort().forEach(curso => {
-        const divCurso = document.createElement('div');
-        divCurso.className = 'border border-slate-200 rounded-xl overflow-hidden bg-slate-50';
-
-        let htmlMaterias = '';
-        Object.keys(cursosMap[curso]).sort().forEach(materia => {
-          let htmlGrupos = '';
-          Object.keys(cursosMap[curso][materia]).sort().forEach(grupo => {
-            const g = cursosMap[curso][materia][grupo];
-            htmlGrupos += `
-              <div class="bg-white p-2.5 rounded-lg border border-slate-200 text-xs flex flex-col md:flex-row justify-between gap-2">
+      Object.keys(tree).sort((a,b) => String(a).localeCompare(String(b), undefined, {numeric: true})).forEach(curso => {
+        let htmlMat = '';
+        Object.keys(tree[curso]).sort().forEach(materia => {
+          let htmlGrp = '';
+          Object.keys(tree[curso][materia]).sort().forEach(grupo => {
+            const g = tree[curso][materia][grupo];
+            htmlGrp += `
+              <div class="bg-slate-50 p-2.5 rounded border border-slate-200 text-xs flex justify-between gap-2 items-center shadow-sm">
                 <div>
-                  <span class="font-bold text-blue-700">Grupo ${grupo}</span> - <span>Docente: ${g.docente}</span>
-                  <div class="text-[10px] text-slate-400 mt-0.5">${g.sesiones.join(' | ')}</div>
+                  <span class="font-bold text-blue-700 block">Grp ${grupo} <span class="text-slate-600 font-normal">| ${g.prof}</span></span>
+                  <div class="text-[9px] text-slate-500 mt-1 flex gap-1 flex-wrap">${g.ses.map(s => `<span class="bg-white px-1.5 py-0.5 rounded border">${s}</span>`).join('')}</div>
                 </div>
-                <div class="text-right">
-                  <span class="font-bold text-slate-900">${g.programados}</span>
-                  <span class="text-[10px] text-slate-400 block">estudiantes</span>
+                <div class="text-center bg-white px-2 py-1 rounded border border-slate-200 shrink-0">
+                  <span class="font-black text-slate-800 block text-sm">${g.prog}</span>
+                  <span class="text-[8px] text-slate-400 uppercase">Alum</span>
                 </div>
               </div>
             `;
           });
-
-          htmlMaterias += `
-            <div class="p-3 bg-white rounded-lg border border-slate-200 space-y-2">
-              <h5 class="font-bold text-xs text-slate-800">${materia}</h5>
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-2">${htmlGrupos}</div>
-            </div>
-          `;
+          htmlMat += `<div class="p-3 bg-white rounded-lg border border-slate-200 space-y-2"><h5 class="font-bold text-xs text-slate-800 flex items-center gap-1.5"><i data-lucide="book-open" class="w-3.5 h-3.5 text-blue-500"></i> ${materia}</h5><div class="grid grid-cols-1 md:grid-cols-2 gap-2">${htmlGrp}</div></div>`;
         });
-
-        divCurso.innerHTML = `
-          <div class="p-3 bg-slate-200 font-bold text-xs text-slate-700 uppercase flex justify-between items-center">
-            <span>Curso / Semestre ${curso}</span>
-          </div>
-          <div class="p-3 space-y-3">${htmlMaterias}</div>
-        `;
-
-        container.appendChild(divCurso);
+        cont.innerHTML += `<div class="border border-slate-200 rounded-xl overflow-hidden bg-slate-100 shadow-sm"><div class="p-3 bg-slate-800 text-white font-bold text-xs uppercase flex items-center gap-2"><i data-lucide="layers" class="w-4 h-4"></i> Semestre / Curso ${curso}</div><div class="p-3 space-y-3">${htmlMat}</div></div>`;
       });
     }
 
-    function renderizarDocentes() {
+    function renderizarDocentes(datos = datosRaw) {
       const tbody = document.getElementById('tablaDocentesBody');
       tbody.innerHTML = '';
 
-      const busqueda = (document.getElementById('bDocente')?.value || '').toLowerCase();
-      const datosFiltrados = datosRaw.filter(d => carrerasSeleccionadas.has(d.carrera));
-
-      const docentesMap = {};
-      datosFiltrados.forEach(d => {
-        if (!docentesMap[d.docente]) {
-          docentesMap[d.docente] = {
-            nombre: d.docente,
-            horasSemanales: 0,
-            gruposUnicos: new Map(),
-            materiasSet: new Set()
-          };
-        }
-
-        docentesMap[d.docente].horasSemanales += d.duracionHoras;
-        docentesMap[d.docente].materiasSet.add(d.materia);
-
-        const keyGrupo = `${d.carrera}_${d.materia}_${d.grupo}`;
-        if (!docentesMap[d.docente].gruposUnicos.has(keyGrupo) || docentesMap[d.docente].gruposUnicos.get(keyGrupo) < d.programados) {
-          docentesMap[d.docente].gruposUnicos.set(keyGrupo, d.programados);
-        }
+      const q = (document.getElementById('bDocente')?.value || '').toLowerCase();
+      const list = datos.filter(d => carrerasSeleccionadas.has(d.carrera));
+      
+      const docMap = {};
+      list.forEach(d => {
+        if (!docMap[d.docente]) docMap[d.docente] = { nombre: d.docente, hs: 0, grp: new Map(), mat: new Set() };
+        docMap[d.docente].hs += d.duracionHoras;
+        docMap[d.docente].mat.add(d.materia);
+        const k = `${d.carrera}_${d.materia}_${d.grupo}`;
+        if (!docMap[d.docente].grp.has(k) || docMap[d.docente].grp.get(k) < d.programados) docMap[d.docente].grp.set(k, d.programados);
       });
 
-      let docentesLista = Object.values(docentesMap);
+      let res = Object.values(docMap);
+      if (q) res = res.filter(x => x.nombre.toLowerCase().includes(q) || Array.from(x.mat).some(m => m.toLowerCase().includes(q)));
+      res.sort((a, b) => a.nombre.localeCompare(b.nombre));
 
-      if (busqueda) {
-        docentesLista = docentesLista.filter(doc => 
-          doc.nombre.toLowerCase().includes(busqueda) ||
-          Array.from(doc.materiasSet).some(m => m.toLowerCase().includes(busqueda))
-        );
-      }
-
-      docentesLista.sort((a, b) => a.nombre.localeCompare(b.nombre));
-
-      docentesLista.forEach(doc => {
-        let estudiantesUnicos = 0;
-        doc.gruposUnicos.forEach(v => estudiantesUnicos += v);
-
-        const tr = document.createElement('tr');
-        tr.className = 'hover:bg-slate-50 transition';
-        tr.innerHTML = `
-          <td class="p-3 font-bold text-slate-800">${doc.nombre}</td>
-          <td class="p-3 text-slate-600">${Array.from(doc.materiasSet).join(', ')}</td>
-          <td class="p-3 text-center font-bold text-blue-700">${doc.horasSemanales} hrs</td>
-          <td class="p-3 text-center font-bold text-purple-700">${doc.horasSemanales * 4} hrs</td>
-          <td class="p-3 text-center font-bold text-emerald-700">${estudiantesUnicos}</td>
-          <td class="p-3 text-right">
-            <button onclick="abrirModalDocente('${doc.nombre}')" class="px-2.5 py-1 bg-slate-800 text-white rounded text-[11px] font-semibold hover:bg-slate-700">
-              Ver Ficha
-            </button>
-          </td>
+      res.forEach(doc => {
+        let al = 0; doc.grp.forEach(v => al += v);
+        tbody.innerHTML += `
+          <tr class="hover:bg-slate-50 transition border-b border-slate-100">
+            <td class="p-3 font-bold text-slate-800 max-w-[140px] md:max-w-xs truncate">${doc.nombre}</td>
+            <td class="p-3 text-slate-500 text-[10px] md:text-xs max-w-[120px] md:max-w-sm truncate" title="${Array.from(doc.mat).join(', ')}">${Array.from(doc.mat).join(', ')}</td>
+            <td class="p-3 text-center font-bold text-blue-600">${doc.hs}h</td>
+            <td class="p-3 text-center font-bold text-purple-600">${doc.hs * 4}h</td>
+            <td class="p-3 text-center font-bold text-emerald-600">${al}</td>
+            <td class="p-3 text-right">
+              <button onclick="abrirModalDocente('${doc.nombre}')" class="p-1.5 bg-slate-100 text-slate-700 hover:bg-blue-100 hover:text-blue-700 rounded transition border border-slate-200 inline-flex items-center gap-1 text-[10px] font-bold uppercase">
+                <i data-lucide="eye" class="w-3.5 h-3.5"></i> <span class="hidden md:inline">Ver</span>
+              </button>
+            </td>
+          </tr>
         `;
-        tbody.appendChild(tr);
       });
     }
 
-    function abrirModalDocente(nombreDocente) {
-      const docData = datosRaw.filter(d => d.docente === nombreDocente && carrerasSeleccionadas.has(d.carrera));
-      if (docData.length === 0) return;
+    function abrirModalDocente(nombre) {
+      const d = datosRaw.filter(x => x.docente === nombre && carrerasSeleccionadas.has(x.carrera));
+      if (!d.length) return;
 
-      document.getElementById('mDocenteNombre').innerText = nombreDocente;
-
-      let horasSemanales = 0;
-      const gruposUnicos = new Map();
-
-      docData.forEach(d => {
-        horasSemanales += d.duracionHoras;
-        const k = `${d.carrera}_${d.materia}_${d.grupo}`;
-        if (!gruposUnicos.has(k) || gruposUnicos.get(k) < d.programados) {
-          gruposUnicos.set(k, d.programados);
-        }
+      document.getElementById('mDocenteNombre').innerText = nombre;
+      
+      let hs = 0; const gMap = new Map();
+      d.forEach(x => {
+        hs += x.duracionHoras;
+        const k = `${x.carrera}_${x.materia}_${x.grupo}`;
+        if (!gMap.has(k) || gMap.get(k) < x.programados) gMap.set(k, x.programados);
       });
+      let al = 0; gMap.forEach(v => al += v);
 
-      let alumnosUnicos = 0;
-      gruposUnicos.forEach(v => alumnosUnicos += v);
+      document.getElementById('mDocenteBadges').innerHTML = `
+        <span class="bg-blue-600/20 text-blue-200 border border-blue-500/30 px-2 py-1 rounded text-[10px] font-bold flex items-center gap-1"><i data-lucide="clock" class="w-3 h-3"></i> ${hs} hrs/sem</span>
+        <span class="bg-purple-600/20 text-purple-200 border border-purple-500/30 px-2 py-1 rounded text-[10px] font-bold flex items-center gap-1"><i class="w-3 h-3" data-lucide="calendar-days"></i> ${hs*4} hrs/mes</span>
+        <span class="bg-emerald-600/20 text-emerald-200 border border-emerald-500/30 px-2 py-1 rounded text-[10px] font-bold flex items-center gap-1"><i data-lucide="users" class="w-3 h-3"></i> ${al} alumnos únicos</span>
+      `;
 
-      document.getElementById('mDocenteResumen').innerText = `${horasSemanales} hrs/sem | ${horasSemanales * 4} hrs/mes | ${alumnosUnicos} alumnos únicos`;
-
-      let htmlClases = '';
-      docData.forEach(c => {
-        htmlClases += `
-          <div class="p-3 bg-slate-50 rounded-lg border border-slate-200 flex justify-between items-center">
-            <div>
-              <p class="font-bold text-slate-800">${c.materia} (Grupo ${c.grupo})</p>
-              <p class="text-slate-500">${c.dia} ${c.horaEntrada}-${c.horaSalida} | Aula: ${c.aula} (${c.edificio})</p>
-              <p class="text-slate-400">${c.carrera}</p>
+      let html = '';
+      d.sort((a,b) => ['LUN','MAR','MIE','JUE','VIE','SAB','DOM'].indexOf(a.dia) - ['LUN','MAR','MIE','JUE','VIE','SAB','DOM'].indexOf(b.dia)).forEach(c => {
+        html += `
+          <div class="p-3 bg-white rounded-lg border border-slate-200 shadow-sm relative overflow-hidden">
+            <div class="absolute left-0 top-0 bottom-0 w-1 ${c.programados>=80 ? 'bg-red-500': c.programados>=50 ? 'bg-orange-500' : 'bg-blue-500'}"></div>
+            <div class="pl-2">
+              <div class="flex justify-between items-start mb-1">
+                <p class="font-bold text-slate-800 leading-tight">${c.materia} <span class="text-blue-600">(Grp ${c.grupo})</span></p>
+                <span class="bg-slate-100 px-1.5 py-0.5 rounded text-[10px] font-black border border-slate-200">${c.programados} ALUM</span>
+              </div>
+              <p class="text-xs text-slate-600 font-medium flex items-center gap-1.5 mt-1"><i data-lucide="calendar" class="w-3.5 h-3.5 text-slate-400"></i> ${c.dia} ${c.horaEntrada}-${c.horaSalida}</p>
+              <p class="text-xs text-slate-600 font-medium flex items-center gap-1.5 mt-0.5"><i data-lucide="map-pin" class="w-3.5 h-3.5 text-slate-400"></i> Aula ${c.aula} (${c.edificio})</p>
+              <p class="text-[9px] text-slate-400 font-bold uppercase mt-2">${c.carrera} - Semestre ${c.curso}</p>
             </div>
-            <span class="font-bold text-blue-700 bg-blue-50 px-2 py-1 rounded border border-blue-200">
-              ${c.programados} alumnos
-            </span>
           </div>
         `;
       });
-
-      document.getElementById('mDocenteContenido').innerHTML = htmlClases;
+      document.getElementById('mDocenteContenido').innerHTML = html;
       document.getElementById('modalDocente').classList.remove('hidden');
+      lucide.createIcons();
     }
 
-    function cerrarModalDocente() {
-      document.getElementById('modalDocente').classList.add('hidden');
-    }
+    function cerrarModalDocente() { document.getElementById('modalDocente').classList.add('hidden'); }
 
     function renderizarGraficas(datos) {
-      const ctx1 = document.getElementById('chartDocentesEstudiantes')?.getContext('2d');
-      const ctx2 = document.getElementById('chartDocentesHoras')?.getContext('2d');
+      // 1. Chart Cobertura Semestral
+      const ctxCob = document.getElementById('chartCoberturaSemestre')?.getContext('2d');
+      const statsCob = {};
+      datos.forEach(d => {
+        if (!statsCob[d.curso]) statsCob[d.curso] = { tot: 0, vis: 0 };
+        statsCob[d.curso].tot++;
+        if (estadoVisitas[d.id]) statsCob[d.curso].vis++;
+      });
+      
+      const labelsCob = Object.keys(statsCob).sort((a,b)=>String(a).localeCompare(String(b), undefined, {numeric: true}));
+      const dataCob = labelsCob.map(k => statsCob[k].tot > 0 ? Math.round((statsCob[k].vis/statsCob[k].tot)*100) : 0);
 
-      if (!ctx1 || !ctx2) return;
+      if (charts.cob) charts.cob.destroy();
+      if(ctxCob) charts.cob = new Chart(ctxCob, {
+        type: 'bar',
+        data: { labels: labelsCob.map(l => `Sem ${l}`), datasets: [{ label: '% Avance', data: dataCob, backgroundColor: '#10b981', borderRadius: 4 }] },
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, max: 100 } } }
+      });
 
+      // 2 y 3. Docentes Estudiantes y Horas
       const docMap = {};
       datos.forEach(d => {
-        if (!docMap[d.docente]) docMap[d.docente] = { horas: 0, grupos: new Map() };
-        docMap[d.docente].horas += d.duracionHoras;
+        if (!docMap[d.docente]) docMap[d.docente] = { hrs: 0, grp: new Map() };
+        docMap[d.docente].hrs += d.duracionHoras;
         const k = `${d.carrera}_${d.materia}_${d.grupo}`;
-        if (!docMap[d.docente].grupos.has(k) || docMap[d.docente].grupos.get(k) < d.programados) {
-          docMap[d.docente].grupos.set(k, d.programados);
-        }
+        if (!docMap[d.docente].grp.has(k) || docMap[d.docente].grp.get(k) < d.programados) docMap[d.docente].grp.set(k, d.programados);
       });
 
-      const docentesArr = Object.keys(docMap).map(name => {
-        let est = 0;
-        docMap[name].grupos.forEach(v => est += v);
-        return { nombre: name, estudiantes: est, horasMensuales: docMap[name].horas * 4 };
+      const docArr = Object.keys(docMap).map(n => {
+        let e = 0; docMap[n].grp.forEach(v => e += v);
+        return { n, e, h: docMap[n].hrs * 4 };
       });
 
-      const topEst = [...docentesArr].sort((a,b) => b.estudiantes - a.estudiantes).slice(0, 10);
-      const topHoras = [...docentesArr].sort((a,b) => b.horasMensuales - a.horasMensuales).slice(0, 10);
+      const topE = [...docArr].sort((a,b) => b.e - a.e).slice(0, 10);
+      const topH = [...docArr].sort((a,b) => b.h - a.h).slice(0, 10);
 
-      if (charts.c1) charts.c1.destroy();
-      charts.c1 = new Chart(ctx1, {
+      const ctxE = document.getElementById('chartDocentesEstudiantes')?.getContext('2d');
+      if (charts.e) charts.e.destroy();
+      if(ctxE) charts.e = new Chart(ctxE, {
         type: 'bar',
-        data: {
-          labels: topEst.map(d => d.nombre.split(' ')[0]),
-          datasets: [{ label: 'Estudiantes Únicos', data: topEst.map(d => d.estudiantes), backgroundColor: '#3b82f6' }]
-        },
+        data: { labels: topE.map(x => x.n.split(' ')[0]), datasets: [{ label: 'Estudiantes', data: topE.map(x => x.e), backgroundColor: '#3b82f6', borderRadius: 4 }] },
         options: { responsive: true, plugins: { legend: { display: false } } }
       });
 
-      if (charts.c2) charts.c2.destroy();
-      charts.c2 = new Chart(ctx2, {
+      const ctxH = document.getElementById('chartDocentesHoras')?.getContext('2d');
+      if (charts.h) charts.h.destroy();
+      if(ctxH) charts.h = new Chart(ctxH, {
         type: 'bar',
-        data: {
-          labels: topHoras.map(d => d.nombre.split(' ')[0]),
-          datasets: [{ label: 'Horas Mensuales', data: topHoras.map(d => d.horasMensuales), backgroundColor: '#8b5cf6' }]
-        },
+        data: { labels: topH.map(x => x.n.split(' ')[0]), datasets: [{ label: 'Horas Mes', data: topH.map(x => x.h), backgroundColor: '#8b5cf6', borderRadius: 4 }] },
         options: { responsive: true, plugins: { legend: { display: false } } }
       });
     }
 
     async function toggleVisita(id) {
-      const nuevoEstado = !estadoVisitas[id];
-      estadoVisitas[id] = nuevoEstado;
+      const prev = !!estadoVisitas[id];
+      estadoVisitas[id] = !prev;
 
       if (window.db) {
-        if (nuevoEstado) {
-          const item = datosRaw.find(d => d.id === id);
+        if (!prev) {
+          const it = datosRaw.find(x => x.id === id);
           await window.setDoc(window.doc(window.db, "visitas_aulas", id), {
-            id: id,
-            visitado: true,
-            conteoReal: estadoConteoReal[id] !== undefined ? estadoConteoReal[id] : (item ? item.programados : 0),
-            fecha: new Date().toISOString()
+            id: id, visitado: true, conteoReal: estadoConteoReal[id] ?? (it ? it.programados : 0), fecha: new Date().toISOString()
           });
         } else {
           await window.deleteDoc(window.doc(window.db, "visitas_aulas", id));
@@ -852,40 +884,38 @@
       actualizarTodo();
     }
 
-    async function modificarConteo(id, delta) {
-      const item = datosRaw.find(d => d.id === id);
-      const prev = estadoConteoReal[id] !== undefined ? estadoConteoReal[id] : (item ? item.programados : 0);
-      const nval = Math.max(0, prev + delta);
-
+    async function modificarConteo(id, dt) {
+      const it = datosRaw.find(x => x.id === id);
+      const prev = estadoConteoReal[id] ?? (it ? it.programados : 0);
+      const nval = Math.max(0, prev + dt);
       estadoConteoReal[id] = nval;
 
       if (window.db && estadoVisitas[id]) {
-        await window.setDoc(window.doc(window.db, "visitas_aulas", id), {
-          id: id,
-          visitado: true,
-          conteoReal: nval,
-          fecha: new Date().toISOString()
-        }, { merge: true });
+        await window.setDoc(window.doc(window.db, "visitas_aulas", id), { conteoReal: nval }, { merge: true });
       }
       actualizarTodo();
     }
 
-    function cambiarTab(tab) {
-      ['aulas', 'cursos', 'docentes', 'graficas'].forEach(t => {
-        document.getElementById(`sec-${t}`).classList.add('hidden');
-        document.getElementById(`tab-${t}`).className = 'py-3 text-slate-500 hover:text-slate-800 flex items-center gap-2 whitespace-nowrap';
+    function cambiarTab(t) {
+      ['aulas', 'progreso', 'cursos', 'docentes', 'graficas'].forEach(x => {
+        document.getElementById(`sec-${x}`).classList.add('hidden');
+        
+        // Desktop Tabs
+        const dBtn = document.getElementById(`dtab-${x}`);
+        if(dBtn) dBtn.className = 'py-3 text-slate-500 hover:text-slate-800 flex items-center gap-2 whitespace-nowrap';
+        
+        // Mobile Tabs
+        const mBtn = document.getElementById(`mtab-${x}`);
+        if(mBtn) mBtn.className = 'tab-inactive-mobile flex flex-col items-center gap-1 py-3 px-2 w-full transition';
       });
 
-      document.getElementById(`sec-${tab}`).classList.remove('hidden');
-      document.getElementById(`tab-${tab}`).className = 'tab-active py-3 flex items-center gap-2 whitespace-nowrap';
-    }
-
-    function reiniciarProgreso() {
-      if (confirm('¿Deseas reiniciar todas las visitas y registros?')) {
-        estadoVisitas = {};
-        estadoConteoReal = {};
-        actualizarTodo();
-      }
+      document.getElementById(`sec-${t}`).classList.remove('hidden');
+      
+      const dBtn = document.getElementById(`dtab-${t}`);
+      if(dBtn) dBtn.className = 'tab-active-desktop py-3 flex items-center gap-2 whitespace-nowrap';
+      
+      const mBtn = document.getElementById(`mtab-${t}`);
+      if(mBtn) mBtn.className = 'tab-active-mobile flex flex-col items-center gap-1 py-3 px-2 w-full transition';
     }
   </script>
 </body>
